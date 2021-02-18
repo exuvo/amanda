@@ -25,7 +25,7 @@
  * Authors: the Amanda Development Team.  Its members are listed in a
  * file named AUTHORS, in the root directory of this distribution.
  */
-/* 
+/*
  * $Id: amgtar.c 8888 2007-10-02 13:40:42Z martineau $
  *
  * send estimated backup sizes using dump
@@ -73,6 +73,9 @@
 #include "conffile.h"
 #include "getopt.h"
 #include "security-file.h"
+
+/* cast to this to calm down gcc warnings */
+typedef long long int compat_lld_t;
 
 int debug_application = 1;
 #define application_debug(i, ...) do {	\
@@ -1090,7 +1093,7 @@ amgtar_estimate(
     int        nullfd = -1;
     int        pipefd = -1;
     FILE      *dumpout = NULL;
-    off_t      size = -1;
+    int64_t    size = -1;
     char       line[32768];
     char      *errmsg = NULL;
     char      *qerrmsg = NULL;
@@ -1217,7 +1220,7 @@ amgtar_estimate(
 	    /*NOTREACHED*/
 	}
 
-	size = (off_t)-1;
+	size = (int64_t)-1;
 	while (size < 0 && (fgets(line, sizeof(line), dumpout) != NULL)) {
 	    if (strlen(line) > 0 && line[strlen(line)-1] == '\n') {
 		/* remove trailling \n */
@@ -1230,10 +1233,12 @@ amgtar_estimate(
 	    /*@ignore@*/
 	    for(rp = re_table; rp->regex != NULL; rp++) {
 		if(match(rp->regex, line)) {
-		    if (rp->typ == DMP_SIZE) {
-			size = ((the_num(line, rp->field)*rp->scale+1023.0)/1024.0);
-			if(size < 0.0)
-			    size = 1.0;             /* found on NeXT -- sigh */
+		    if (rp->typ == DMP_SIZE)
+                    {
+                        size = (int64_t) ( the_num(line, rp->field) * rp->scale );
+                        size = ( size+1023 ) >> 10;
+                        /* found on NeXT -- sigh */
+                        size = ( size >= 0 ? : 1 );  /* at least zero plz */
 		    }
 		    break;
 		}
@@ -1250,11 +1255,11 @@ amgtar_estimate(
 		 qdisk,
 		 level,
 		 walltime_str(timessub(curclock(), start_time)));
-	if(size == (off_t)-1) {
+	if(size == (int64_t)-1) {
 	    errmsg = g_strdup_printf(_("no size line match in %s output"), gnutar_realpath);
 	    dbprintf(_("%s for %s\n"), errmsg, qdisk);
 	    dbprintf(".....\n");
-	} else if(size == (off_t)0 && argument->level == 0) {
+	} else if(size == 0 && argument->level == 0) {
 	    dbprintf(_("possible %s problem -- is \"%s\" really empty?\n"),
 		     gnutar_realpath, argument->dle.disk);
 	    dbprintf(".....\n");
@@ -1262,7 +1267,7 @@ amgtar_estimate(
 	dbprintf(_("estimate size for %s level %d: %lld KB\n"),
 		 qdisk,
 		 level,
-		 (long long)size);
+		 (compat_lld_t)size);
 
 	(void)kill(-tarpid, SIGTERM);
 
@@ -1312,7 +1317,7 @@ common_exit:
 	aclose(nullfd);
 	afclose(dumpout);
 
-	fprintf(stdout, "%d %lld 1\n", level, (long long)size);
+	fprintf(stdout, "%d %lld 1\n", level, (compat_lld_t)size);
     }
     amfree(qdisk);
     amfree(file_exclude);
@@ -1346,7 +1351,7 @@ amgtar_backup(
     char      *incrname;
     char       line[32768];
     amregex_t *rp;
-    off_t      dump_size = -1;
+    int64_t    dump_size = -1;
     char      *type;
     char       startchr;
     int        dataf = 1;
@@ -1441,7 +1446,7 @@ amgtar_backup(
 	    line[strlen(line)-1] = '\0';
 	}
 	if (strncmp(line, "block ", 6) == 0) { /* filename */
-	    off_t block_no = g_ascii_strtoull(line+6, NULL, 0);
+	    int64_t block_no = g_ascii_strtoll(line+6, NULL, 0);
 	    char *filename = strchr(line, ':');
 	    if (filename) {
 		filename += 2;
@@ -1451,8 +1456,8 @@ amgtar_backup(
 		    }
 		    if (argument->state_stream != -1) {
 			char *s = g_strdup_printf("%lld %s\n",
-					 (long long)block_no, &filename[1]);
-			guint a = full_write(argument->state_stream, s, strlen(s));
+					 (compat_lld_t)block_no, &filename[1]);
+			size_t a = full_write(argument->state_stream, s, strlen(s));
 			if (a < strlen(s)) {
 			    g_debug("Failed to write to the state stream: %s",
 				    strerror(errno));
@@ -1462,7 +1467,7 @@ amgtar_backup(
 			       am_has_feature(argument->amfeatures,
 					      fe_sendbackup_state)) {
 			fprintf(mesgstream, "sendbackup: state %lld %s\n",
-			        (long long)block_no, &filename[1]);
+			        (compat_lld_t)block_no, &filename[1]);
 		    }
 		}
 	    }
@@ -1473,7 +1478,7 @@ amgtar_backup(
 		}
 	    }
 	    if(rp->typ == DMP_SIZE) {
-		dump_size = (off_t)((the_num(line, rp->field)* rp->scale+1023.0)/1024.0);
+		dump_size = (int64_t)((the_num(line, rp->field)* rp->scale+1023.0)/1024.0);
 	    }
 	    switch(rp->typ) {
 	    case DMP_NORMAL:
@@ -1549,8 +1554,8 @@ amgtar_backup(
 	}
     }
 
-    dbprintf("sendbackup: size %lld\n", (long long)dump_size);
-    fprintf(mesgstream, "sendbackup: size %lld\n", (long long)dump_size);
+    dbprintf("sendbackup: size %lld\n", (compat_lld_t)dump_size);
+    fprintf(mesgstream, "sendbackup: size %lld\n", (compat_lld_t)dump_size);
 
     if (argument->dle.create_index)
 	fclose(indexstream);
@@ -1820,10 +1825,10 @@ amgtar_restore(
 		fprintf(dar_file,"DAR 0:-1\n");
 		g_debug("full dar: 0:-1");
 	    } else {
-		int   previous_block = -1;
+		int64_t   previous_block = -1;
 
 		while (fgets(line, 32768, recover_state_file) != NULL) {
-		    off_t     block_no = g_ascii_strtoull(line, NULL, 0);
+		    int64_t    block_no = g_ascii_strtoll(line, NULL, 0);
 		    gboolean  match    = FALSE;
 		    char     *filename = strchr(line, ' ');
 		    char     *ii;
@@ -1837,7 +1842,7 @@ amgtar_restore(
 			filename[strlen(filename)-1] = '\0';
 
 		    g_debug("recover_dump_state_file: %lld %s",
-					 (long long)block_no, filename);
+					 (compat_lld_t)block_no, filename);
 		    for (i = 0; i < include_array->len; i++) {
 			size_t strlenii;
 
@@ -1860,23 +1865,23 @@ amgtar_restore(
 			    previous_block = block_no;
 		    } else if (previous_block >= 0) {
 			g_debug("restore block %lld (%lld) to %lld (%lld)",
-				(long long)previous_block * 512,
-				(long long)previous_block,
-				(long long)block_no * 512 - 1,
-				(long long)block_no);
+				(compat_lld_t)previous_block * 512,
+				(compat_lld_t)previous_block,
+				(compat_lld_t)block_no * 512 - 1,
+				(compat_lld_t)block_no);
 			fprintf(dar_file, "DAR %lld:%lld\n",
-				(long long)previous_block * 512,
-				(long long)block_no * 512- 1);
+				(compat_lld_t)previous_block * 512,
+				(compat_lld_t)block_no * 512- 1);
 			previous_block = -1;
 		    }
 		}
 		fclose(recover_state_file);
 		if (previous_block >= 0) {
 		    g_debug("restore block %lld (%lld) to END",
-			    (long long)previous_block * 512,
-			    (long long)previous_block);
+			    (compat_lld_t)previous_block * 512,
+			    (compat_lld_t)previous_block);
 		    fprintf(dar_file, "DAR %lld:-1\n",
-			    (long long)previous_block * 512);
+			    (compat_lld_t)previous_block * 512);
 		}
 	    }
 	} else {
@@ -2098,10 +2103,10 @@ amgtar_get_incrname(
     char *basename = NULL;
     char *incrname = NULL;
     int   infd, outfd;
-    ssize_t   nb;
+    int64_t nb;
     char *inputname = NULL;
     char *errmsg = NULL;
-    char *buf;
+    char buf[32768];
 
     if (gnutar_listdir) {
 	char number[NUM_STR_SIZE];
@@ -2257,7 +2262,7 @@ check_no_check_device(void)
 	int dumpin;
 	int dataf;
 	int outf;
-	int size;
+	int64_t size;
 	char buf[32768];
 
 	g_ptr_array_add(argv_ptr, gnutar_path);
