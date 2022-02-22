@@ -30,6 +30,9 @@
  *
  */
 
+#include "../config/config.h"
+#include <sys/wait.h>
+
 #include "amanda.h"
 #include "server_util.h"
 #include "logfile.h"
