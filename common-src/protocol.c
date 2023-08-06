@@ -179,8 +179,8 @@ protocol_sendreq(
     void *			datap)
 {
     proto_t *p;
-    char    *platform = NULL;
-    char    *distro = NULL;
+    static char *platform = NULL;
+    static char *distro = NULL;
 
     p = g_malloc(sizeof(proto_t));
     p->state = s_sendreq;
@@ -209,7 +209,10 @@ protocol_sendreq(
     proto_debug(1, _("protocol: security_connect: host %s -> p %p\n"),
 		    hostname, p);
 
-    get_platform_and_distro(&platform, &distro);
+    if (!platform && !distro) {
+	get_platform_and_distro(&platform, &distro);
+    }
+
     if (distro != NULL &&
 	!g_str_equal(distro, "mac") &&
 #if defined HAVE_FUNC_GETSERVBYNAME_R_4 || defined HAVE_FUNC_GETSERVBYNAME_R_5 || defined HAVE_FUNC_GETSERVBYNAME_R_6
@@ -243,8 +246,6 @@ protocol_sendreq(
 	security_connect(p->security_driver, p->hostname, p->conf_fn, connect_callbackX,
 			 p, p->datap);
     }
-    g_free(platform);
-    g_free(distro);
 }
 
 static gpointer
@@ -399,6 +400,8 @@ protocol_check(void)
 {
 
     /* arg == 1 means don't block */
+    /* doing it two times allow to send the REQ packet immediately */
+    event_loop(1);
     event_loop(1);
 }
 

@@ -208,6 +208,8 @@ BuildRequires: glib2 >= 2.2.0
 BuildRequires: glib2-devel
 BuildRequires: gettext
 BuildRequires: readline
+BuildRequires: docbook-style-xsl
+BuildRequires: swig
 # Note: newer distros have changed most *-devel to lib*-devel, and added a
 # provides tag for backwards compat.
 BuildRequires: readline-devel
@@ -216,6 +218,7 @@ BuildRequires: %{curl}-devel >= 7.10.0
 BuildRequires: openssl
 BuildRequires: openssl-devel
 BuildRequires: perl(ExtUtils::Embed)
+BuildRequires: mailx
 %{?prereq_sharutils}
 Requires: /bin/awk
 Requires: /bin/date
@@ -224,7 +227,7 @@ Requires: /sbin/ldconfig
 Requires: /bin/sh
 Requires: /usr/sbin/useradd
 Requires: /usr/sbin/usermod
-Requires: fileutils
+Requires: coreutils
 Requires: gettext
 Requires: grep
 Requires: gnuplot
@@ -234,6 +237,7 @@ Requires: xinetd
 Requires: perl >= 5.6.0
 Requires: tar >= %{tarver}
 Requires: readline
+Requires: mailx
 %{?requires_libtermcap}
 %{?requires_initscripts}
 
@@ -241,7 +245,7 @@ Requires: readline
 Summary: The Amanda Backup and Archiving Client
 Group: %{rpm_group}
 Requires: /bin/awk
-Requires: fileutils
+Requires: coreutils
 Requires: grep
 %{?requires_libtermcap}
 %{?requires_initscripts}
@@ -260,7 +264,7 @@ Obsoletes: amanda, amanda-client, amanda-server
 Summary: The Amanda Backup and Archiving Server
 Group: %{rpm_group}
 Requires: /bin/awk
-Requires: fileutils
+Requires: coreutils
 Requires: grep
 %{?requires_libtermcap}
 %{?requires_initscripts}
@@ -396,8 +400,9 @@ find-req-script
         --localstatedir=%{LOCALSTATEDIR} \
         --libdir=%{LIBDIR} \
         --includedir=%{INCLUDEDIR} \
-	--mandir=%{MANDIR} \
-	--with-amdatadir=%{AMDATADIR} \
+        --mandir=%{MANDIR} \
+        --enable-manpage-build \
+        --with-amdatadir=%{AMDATADIR} \
         --with-gnuplot=/usr/bin/gnuplot \
         --with-gnutar-listdir=%{AMANDAHOMEDIR}/gnutar-lists \
         --with-index-server=localhost \
@@ -441,6 +446,7 @@ mkdir -p %{ROOT_LOGDIR}
 
 echo "%{amanda_version_info}" >%{ROOT_AMANDAHOMEDIR}/amanda-release
 
+install -m 644 %{ROOT_SYSCONFDIR}/amanda/amanda-security.conf %{ROOT_SYSCONFDIR}
 # --- Clean up buildroot ---
 
 %clean
@@ -811,6 +817,7 @@ fi
 %doc %{AMANDAHOMEDIR}/template.d/README
 %doc %{AMANDAHOMEDIR}/template.d/dumptypes
 %defattr(0644,root,root,0755)
+%config(noreplace) %{SYSCONFDIR}/amanda-security.conf
 %docdir %{MANDIR}
 %{MANDIR}/man5/amanda.conf.5.gz
 %{MANDIR}/man5/amanda-client.conf.5.gz
@@ -864,6 +871,7 @@ fi
 %docdir %{AMANDAHOMEDIR}/example
 %docdir %{AMANDAHOMEDIR}/template.d
 %defattr(0644,root,root,0755)
+%config(noreplace) %{SYSCONFDIR}/amanda-security.conf
 %docdir %{MANDIR}
 %{MANDIR}/man5/am*
 %{MANDIR}/man5/disklist.5.gz

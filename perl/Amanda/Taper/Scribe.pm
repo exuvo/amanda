@@ -1169,13 +1169,17 @@ sub _dump_done {
 
     return if !defined $dump_cb;
 
+    my $total_duration = 0;
+    if (defined($self->{'dump_start_time'})) {
+       $total_duration = time - $self->{'dump_start_time'};
+    }
     my %dump_cb_args = (
 	result => $result,
 	device_errors => $self->{'device_errors'},
 	config_denial_message => $self->{'config_denial_message'},
 	size => $self->{'size'},
 	duration => $self->{'duration'},
-	total_duration => time - $self->{'dump_start_time'},
+	total_duration => $total_duration,
 	nparts => $self->{'nparts'});
 
     # reset everything and let the original caller know we're done
@@ -1251,13 +1255,14 @@ sub _release_reservation {
 	    $label = $self->{'device'}->volume_label();
 	    $fm = $self->{'device'}->file();
 	    $kb = $self->{'device_size'} / 1024;
+	    my $tl = $self->{'taperscan'}->{'tapelist'};
+	    my $tle = $tl->lookup_tapelabel($label);
 
 	    # log a message for amreport
 	    $self->{'feedback'}->scribe_notif_log_info(
-	        message => "tape $label kb $kb fm $fm [OK]");
+	        message => "tape $label Barcode $tle->{'barcode'} kb $kb fm $fm [OK]");
 	    if ($self->{'taperscan'}->{'storage'}->{'erase_on_failure'} && $self->{'tape_labelled'} && !$self->{'tape_good'}) {
 		# rewrite the tapelist
-		my $tl = $self->{'taperscan'}->{'tapelist'};
 		$tl->reload(1);
 		$label = $self->{'device'}->volume_label;
 		my $tle = $tl->lookup_tapelabel($label);
@@ -1660,9 +1665,9 @@ sub dbg {
     my ($self, $msg) = @_;
     if ($self->{'debug'}) {
 	if (defined $self->{'worker'}->{'handle'}) {
-	    debug("$self->{'worker'}->{'handle'} Amanda::Taper::Scribe: $msg");
+	    debug("$self $self->{'worker'}->{'worker_name'} $self->{'worker'}->{'handle'} Amanda::Taper::Scribe: $msg");
 	} else {
-	    debug("Amanda::Taper::Scribe: $msg");
+	    debug("$self: $msg");
 	}
     }
 }

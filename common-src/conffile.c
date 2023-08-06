@@ -180,8 +180,11 @@ typedef enum {
     CONF_CUSTOM,
 
     /* autolabel */
-    CONF_AUTOLABEL,		CONF_ANY_VOLUME,	CONF_OTHER_CONFIG,
-    CONF_NON_AMANDA,		CONF_VOLUME_ERROR,	CONF_EMPTY,
+    CONF_AUTOLABEL,		CONF_ANY_VOLUME,
+#if WANT_UNSAFE_AUTOLABEL
+    CONF_OTHER_CONFIG,          CONF_NON_AMANDA,
+#endif
+    CONF_VOLUME_ERROR,	        CONF_EMPTY,
     CONF_META_AUTOLABEL,
 
     /* labelstr */
@@ -1133,12 +1136,16 @@ keytab_t server_keytab[] = {
     { "NOFULL", CONF_NOFULL },
     { "NOINC", CONF_NOINC },
     { "NONE", CONF_NONE },
+#if WANT_UNSAFE_AUTOLABEL
     { "NON_AMANDA", CONF_NON_AMANDA },
+#endif
     { "OPTIONAL", CONF_OPTIONAL },
     { "ORDER", CONF_ORDER },
     { "ORG", CONF_ORG },
     { "OTHER", CONF_OTHER },
+#if WANT_UNSAFE_AUTOLABEL
     { "OTHER_CONFIG", CONF_OTHER_CONFIG },
+#endif
     { "PART_CACHE_DIR", CONF_PART_CACHE_DIR },
     { "PART_CACHE_MAX_SIZE", CONF_PART_CACHE_MAX_SIZE },
     { "PART_CACHE_TYPE", CONF_PART_CACHE_TYPE },
@@ -1402,7 +1409,7 @@ conf_var_t server_var [] = {
    { CONF_TAPEDEV              , CONFTYPE_STR      , read_str         , CNF_TAPEDEV              , NULL },
    { CONF_DEVICE_PROPERTY      , CONFTYPE_PROPLIST , read_visible_property, CNF_DEVICE_PROPERTY      , NULL },
    { CONF_PROPERTY             , CONFTYPE_PROPLIST , read_hidden_property, CNF_PROPERTY             , NULL },
-   { CONF_TPCHANGER            , CONFTYPE_STR      , read_str         , CNF_TPCHANGER            , NULL },
+   { CONF_TPCHANGER            , CONFTYPE_IDENT    , read_ident       , CNF_TPCHANGER            , NULL },
    { CONF_CHANGERDEV           , CONFTYPE_STR      , read_str         , CNF_CHANGERDEV           , NULL },
    { CONF_CHANGERFILE          , CONFTYPE_STR      , read_str         , CNF_CHANGERFILE          , validate_deprecated_changerfile },
    { CONF_LABELSTR             , CONFTYPE_LABELSTR , read_labelstr    , CNF_LABELSTR             , validate_no_space_dquote },
@@ -1650,16 +1657,16 @@ conf_var_t policy_var [] = {
 
 conf_var_t storage_var [] = {
    { CONF_COMMENT                  , CONFTYPE_STR           , read_str           , STORAGE_COMMENT                  , NULL },
-   { CONF_POLICY                   , CONFTYPE_STR           , read_dpolicy       , STORAGE_POLICY                   , NULL },
+   { CONF_POLICY                   , CONFTYPE_IDENT         , read_dpolicy       , STORAGE_POLICY                   , NULL },
    { CONF_TAPEDEV                  , CONFTYPE_STR           , read_str           , STORAGE_TAPEDEV                  , NULL },
-   { CONF_TPCHANGER                , CONFTYPE_STR           , read_str           , STORAGE_TPCHANGER                , NULL },
+   { CONF_TPCHANGER                , CONFTYPE_IDENT         , read_ident         , STORAGE_TPCHANGER                , NULL },
    { CONF_LABELSTR                 , CONFTYPE_LABELSTR      , read_labelstr      , STORAGE_LABELSTR                 , validate_no_space_dquote },
    { CONF_AUTOLABEL                , CONFTYPE_AUTOLABEL     , read_autolabel     , STORAGE_AUTOLABEL                , validate_no_space_dquote },
    { CONF_META_AUTOLABEL           , CONFTYPE_STR           , read_str           , STORAGE_META_AUTOLABEL           , validate_no_space_dquote },
    { CONF_TAPEPOOL                 , CONFTYPE_STR           , read_str           , STORAGE_TAPEPOOL                 , validate_no_space_dquote },
    { CONF_RUNTAPES                 , CONFTYPE_INT           , read_int           , STORAGE_RUNTAPES                 , NULL },
-   { CONF_TAPERSCAN                , CONFTYPE_STR           , read_str           , STORAGE_TAPERSCAN                , NULL },
-   { CONF_TAPETYPE                 , CONFTYPE_STR           , read_str           , STORAGE_TAPETYPE                 , NULL },
+   { CONF_TAPERSCAN                , CONFTYPE_IDENT         , read_ident         , STORAGE_TAPERSCAN                , NULL },
+   { CONF_TAPETYPE                 , CONFTYPE_IDENT         , read_ident         , STORAGE_TAPETYPE                 , NULL },
    { CONF_MAX_DLE_BY_VOLUME        , CONFTYPE_INT           , read_int           , STORAGE_MAX_DLE_BY_VOLUME        , NULL },
    { CONF_TAPERALGO                , CONFTYPE_TAPERALGO     , read_taperalgo     , STORAGE_TAPERALGO                , NULL },
    { CONF_TAPER_PARALLEL_WRITE     , CONFTYPE_INT           , read_int           , STORAGE_TAPER_PARALLEL_WRITE     , NULL },
@@ -1744,6 +1751,7 @@ get_conftoken(
     if (exp == CONF_PREFERED_IDENT) {
 	exp = CONF_IDENT;
 	prefered_ident = TRUE;
+	tokenval.v.s = NULL;
     }
 
     if (token_pushed) {
@@ -1914,6 +1922,7 @@ negative_number: /* look for goto negative_number below sign is set there */
 
 	    tok = (token_overflow) ? CONF_UNKNOWN :
 			(exp == CONF_IDENT) ? CONF_IDENT : CONF_STRING;
+	    tokenval.type = (exp == CONF_IDENT) ? CONFTYPE_IDENT : CONFTYPE_STR;
 	    break;
 
 	case '-':
@@ -2098,11 +2107,18 @@ read_conffile(
     current_filename = get_seen_filename(filename);
     amfree(filename);
 
+    if (!save_filename) { current_line_num = 0; }
+
     if ((current_file = fopen(current_filename, "r")) == NULL) {
-	if (!missing_ok || errno != ENOENT)
-	    conf_parserror(_("could not open conf file '%s': %s"),
-		    current_filename, strerror(errno));
-	goto finish;
+        if (missing_ok && errno == ENOENT)
+            goto finish;
+        if (save_filename) {
+            conf_parserror(_("could not include conf file '%s' from '%s': %s"),
+                current_filename, save_filename, strerror(errno));
+        }
+        conf_parserror(_("could not open conf file '%s': %s"),
+                current_filename, strerror(errno));
+        goto finish;
     }
     g_debug("reading config file %s", current_filename);
 
@@ -4146,7 +4162,7 @@ read_ident(
     val_t *val)
 {
     ckseen(&val->seen);
-    get_conftoken(CONF_IDENT);
+    get_conftoken(CONF_PREFERED_IDENT);
     g_free(val->v.s);
     val->v.s = g_strdup(tokenval.v.s);
 }
@@ -4790,7 +4806,7 @@ read_dapplication(
 				       NULL, NULL, NULL);
 	current_line_num -= 1;
 	val->v.s = g_strdup(application->name);
-    } else if (tok == CONF_STRING) {
+    } else if (tok == CONF_STRING || tok == CONF_IDENT) {
 	application = lookup_application(tokenval.v.s);
 	if (strlen(tokenval.v.s) != 0) {
 	    if (application == NULL) {
@@ -4822,7 +4838,7 @@ read_dinteractivity(
 					NULL, NULL, NULL);
 	current_line_num -= 1;
 	val->v.s = g_strdup(interactivity->name);
-    } else if (tok == CONF_STRING) {
+    } else if (tok == CONF_STRING || tok == CONF_IDENT) {
 	if (strlen(tokenval.v.s) != 0) {
 	    interactivity = lookup_interactivity(tokenval.v.s);
 	    if (interactivity == NULL) {
@@ -4854,7 +4870,7 @@ read_dtaperscan(
 				   NULL, NULL, NULL);
 	current_line_num -= 1;
 	val->v.s = g_strdup(taperscan->name);
-    } else if (tok == CONF_STRING) {
+    } else if (tok == CONF_STRING || tok == CONF_IDENT) {
 	if (strlen(tokenval.v.s) != 0) {
 	    taperscan = lookup_taperscan(tokenval.v.s);
 	    if (taperscan == NULL) {
@@ -4886,7 +4902,7 @@ read_dpolicy(
 				   NULL, NULL, NULL);
 	current_line_num -= 1;
 	val->v.s = g_strdup(policy->name);
-    } else if (tok == CONF_STRING) {
+    } else if (tok == CONF_STRING || tok == CONF_IDENT) {
 	if (strlen(tokenval.v.s) != 0) {
 	    policy = lookup_policy(tokenval.v.s);
 	    if (policy == NULL) {
@@ -5087,16 +5103,22 @@ read_autolabel(
 	if (tok == CONF_ANY_VOLUME)
 	    val->v.autolabel.autolabel |= AL_OTHER_CONFIG | AL_NON_AMANDA |
 					  AL_VOLUME_ERROR | AL_EMPTY;
+#if WANT_UNSAFE_AUTOLABEL
 	else if (tok == CONF_OTHER_CONFIG)
 	    val->v.autolabel.autolabel |= AL_OTHER_CONFIG;
 	else if (tok == CONF_NON_AMANDA)
 	    val->v.autolabel.autolabel |= AL_NON_AMANDA;
+#endif
 	else if (tok == CONF_VOLUME_ERROR)
 	    val->v.autolabel.autolabel |= AL_VOLUME_ERROR;
 	else if (tok == CONF_EMPTY)
 	    val->v.autolabel.autolabel |= AL_EMPTY;
 	else {
-	    conf_parserror(_("ANY, NEW-VOLUME, OTHER-CONFIG, NON-AMANDA, VOLUME-ERROR or EMPTY is expected"));
+	    conf_parserror(_("ANY, NEW-VOLUME, "
+#if WANT_UNSAFE_AUTOLABEL
+                           "OTHER-CONFIG, NON-AMANDA, "
+#endif
+                           "VOLUME-ERROR or EMPTY is expected"));
 	}
 	get_conftoken(CONF_ANY);
     }
@@ -5670,7 +5692,7 @@ validate_no_space_dquote(
 	break;
       }
     default:
-	conf_parserror("validate_no_space_dquote invalid type %d\n", val->type);
+	conf_parserror("validate_name invalid type %d\n", val->type);
     }
 }
 
@@ -6474,7 +6496,7 @@ init_defaults(
     conf_init_identlist(&conf_data[CNF_STORAGE]              , NULL);
     conf_init_identlist(&conf_data[CNF_VAULT_STORAGE]        , NULL);
     conf_init_str      (&conf_data[CNF_CMDFILE]              , "command_file");
-    conf_init_int      (&conf_data[CNF_REST_API_PORT]        , CONF_UNIT_NONE, 0);
+    conf_init_int      (&conf_data[CNF_REST_API_PORT]        , CONF_UNIT_NONE, 5000);
     conf_init_str      (&conf_data[CNF_REST_SSL_CERT]        , NULL);
     conf_init_str      (&conf_data[CNF_REST_SSL_KEY]         , NULL);
     conf_init_bool     (&conf_data[CNF_USETIMESTAMPS]        , 1);
@@ -6728,7 +6750,7 @@ update_derived_values(
 	    autolabel_t *autolabel = &(conf_data[CNF_AUTOLABEL].v.autolabel);
 	    g_free(autolabel->template);
 	    autolabel->template = g_strdup(getconf_str(CNF_LABEL_NEW_TAPES));
-	    if (!autolabel->template || autolabel->template == '\0') {
+	    if (!autolabel->template || *autolabel->template == '\0') {
 		g_free(autolabel->template);
 		autolabel->template = NULL;
 		autolabel->autolabel = 0;

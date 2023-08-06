@@ -75,6 +75,12 @@ sub local_message {
     #	return "No src_storage defined";
     } elsif ($self->{'code'} == 2500020) {
 	return "No dest_storage defined";
+    } elsif ($self->{'code'} == 2500021) {
+	return "Do not vault '$self->{'hostname'} $self->{'diskname'} $self->{'dump_timestamp'} $self->{'level'}' because it is already on the '$self->{'storage_name'}' storage";
+    } elsif ($self->{'code'} == 2500022) {
+	return "Record vaulting of '$self->{'hostname'} $self->{'diskname'} $self->{'dump_timestamp'} $self->{'level'}' to storage '$self->{'storage_name'}' for later";
+    } else {
+	return "No message for code $self->{'code'}";
     }
 }
 
@@ -83,10 +89,10 @@ package Amanda::Vault;
 use strict;
 use warnings;
 
-use POSIX qw(strftime);
+use POSIX qw( WIFEXITED WEXITSTATUS strftime );
 use File::Temp;
 use Sys::Hostname;
-use Amanda::Config qw( :getconf config_dir_relative );
+use Amanda::Config qw( :init :getconf config_dir_relative );
 use Amanda::Disklist;
 use Amanda::Debug qw( :logging debug );
 use Amanda::Xfer qw( :constants );
@@ -102,6 +108,7 @@ use Amanda::Taper::Scribe qw( get_splitting_args_from_config );
 use Amanda::Storage qw( :constants );
 use Amanda::Changer qw( :constants );
 use Amanda::Cmdline;
+use Amanda::Cmdfile;
 use Amanda::Paths;
 use Amanda::Logfile qw( :logtype_t log_add log_add_full
 			log_rename $amanda_log_trace_log make_stats );
@@ -124,6 +131,8 @@ sub new {
 	$params{'dst_write_timestamp'} = Amanda::Util::generate_timestamp();
     }
 
+    my $uniq = $params{'uniq'};
+    $uniq = 1 if !defined $uniq;
     my $self = bless {
 	quiet => $params{'quiet'},
 	fulls_only => $params{'fulls_only'},
@@ -131,6 +140,9 @@ sub new {
 	incrs_only => $params{'incrs_only'},
 	opt_export => $params{'opt_export'},
 	interactivity => $params{'interactivity'},
+	uniq => $uniq,
+	delayed => $params{'delayed'},
+	run_delayed => $params{'run_delayed'},
 	opt_dumpspecs => $params{'opt_dumpspecs'},
 	opt_dry_run => $params{'opt_dry_run'},
 	config => $params{'config'},
@@ -181,7 +193,7 @@ sub new {
     $self->{'amlibexecdir'} = 0;
 
     # open up a trace log file and put our imprimatur on it, unless dry_runing
-    if (!$self->{'opt_dry_run'}) {
+    if (!$self->{'opt_dry_run'} && !$self->{'delayed'}) {
 	my $logdir = $self->{'logdir'} = config_dir_relative(getconf($CNF_LOGDIR));
 	my @now = localtime;
 	$self->{'longdate'} = strftime "%a %b %e %H:%M:%S %Z %Y", @now;
@@ -335,7 +347,62 @@ sub run {
     die "already called" if $self->{'exit_cb'};
     $self->{'exit_cb'} = $exit_cb;
 
-    $self->setup_src();
+    my $conf_cmdfile = config_dir_relative(getconf($CNF_CMDFILE));
+    $self->{'cmdfile'} = Amanda::Cmdfile->new($conf_cmdfile);
+    $self->{'cmdfile'}->unlock();
+
+
+    Amanda::Logfile::make_dump_storage_hash();
+
+    if ($self->{'run_delayed'}) {
+	#fork the driver
+	my ($rpipe, $driver_pipe) = POSIX::pipe();
+	my $driver_pid = POSIX::fork();
+	if ($driver_pid == 0) {
+	    my $driver = "$amlibexecdir/driver";
+	    my @log_filename = ('--log-filename', $self->{'trace_log_filename'});
+	    my @config_overrides = ();
+	    if (defined $self->{'config_overrides_opt'} and
+		@{$self->{'config_overrides_opt'}}) {
+		@config_overrides = @{$self->{'config_overrides_opt'}};
+	    }
+	    ## child, exec the driver
+	    POSIX::dup2($rpipe, 0);
+	    POSIX::close($rpipe);
+	    POSIX::close($driver_pipe);
+	    POSIX::dup2(fileno($self->{'amdump_log'}), 1);
+	    POSIX::dup2(fileno($self->{'amdump_log'}), 2);
+	    debug("exec: " . join(' ', $driver, $self->{'config'}, @log_filename, "--no-dump", "--no-vault", @config_overrides));
+	    close($self->{'amdump_log'});
+	    exec $driver, $self->{'config'}, @log_filename, "--no-dump",
+			"--no-flush", "-ostorage=",
+			"-ovault-storage=$self->{'dest_storage_name'}",
+			@config_overrides;
+	    die "Could not exec $driver: $!";
+	}
+
+	debug(" driver: $driver_pid");
+	open my $driver_stream, ">&=$driver_pipe";
+	POSIX::close($rpipe);
+
+	print {$driver_stream} "DATE $self->{'timestamp'}\n";
+	print {$driver_stream} "ENDFLUSH\n";
+	close($driver_stream);
+
+	my $dead = wait();
+	die("Error waiting: $!") if ($dead <= 0);
+	my $s = $? >> 8;
+	debug("driver finished with exit code $s");
+	my $exit = WIFEXITED($?)? WEXITSTATUS($?) : 1;
+	$self->{'exit_code'} |= $exit if $exit;
+
+	my $end_longdate = strftime "%a %b %e %H:%M:%S %Z %Y", localtime;
+	$self->amdump_log("end at $end_longdate");
+
+	$self->quit($self->{'exit_code'});
+    } else {
+	$self->setup_src();
+    }
 }
 
 sub setup_src {
@@ -472,7 +539,7 @@ sub setup_src {
 				severity	=> $Amanda::Message::ERROR));
     }
 
-    if (!$self->{'opt_dry_run'}) {
+    if (!$self->{'opt_dry_run'} && !$self->{'delayed'} && !$self->{'run_delayed'}) {
 	# summarize the requested dumps
 	my $request;
 	if ($self->{'src_write_timestamp'}) {
@@ -521,6 +588,37 @@ sub plan_cb {
 
     $src->{'plan'} = $plan;
 
+    # remove plan that are already in the destination storage
+    if ($self->{'uniq'}) {
+	for my $dump (@{$plan->{'dumps'}}) {
+	    my $nb = Amanda::Logfile::dump_storage_hash_exist(
+                                $dump->{'hostname'}, $dump->{'diskname'},
+				$dump->{'dump_timestamp'}, $dump->{'level'},
+				$self->{'dest_storage_name'});
+	    $nb += $self->{'cmdfile'}->get_nb_image_cmd_for_storage(
+		$dump->{'hostname'},
+		$dump->{'diskname'},
+		$dump->{'dump_timestamp'},
+		$dump->{'level'},
+		$self->{'dest_storage_name'});
+	    if ($nb) {
+		$dump->{'to_remove'} = 1;
+		$self->user_msg(Amanda::Vault::Message->new(
+				source_filename => __FILE__,
+				source_line     => __LINE__,
+				code            => 2500021,
+				severity        => $Amanda::Message::INFO,
+				hostname        => $dump->{'hostname'},
+				diskname        => $dump->{'diskname'},
+				dump_timestamp  => $dump->{'dump_timestamp'},
+				level           => $dump->{'level'},
+				storage_name	=> $self->{'dest_storage_name'}));
+	    }
+	}
+	my @plan_array = grep { !$_->{'to_remove'} } @{$plan->{'dumps'}};
+	$plan->{'dumps'} = \@plan_array;
+    }
+
     if ($self->{'opt_dry_run'}) {
 	my $total_kb = Math::BigInt->new(0);
 
@@ -553,6 +651,34 @@ sub plan_cb {
 				severity        => $Amanda::Message::INFO,
 				total_size_kb   => $total_kb));
 
+	return $self->quit(0);
+    }
+
+    if ($self->{'delayed'}) {
+	for my $dump (@{$plan->{'dumps'}}) {
+	    $self->user_msg(Amanda::Vault::Message->new(
+				source_filename => __FILE__,
+				source_line     => __LINE__,
+				code            => 2500022,
+				severity        => $Amanda::Message::INFO,
+				hostname        => $dump->{'hostname'},
+				diskname        => $dump->{'diskname'},
+				dump_timestamp  => $dump->{'dump_timestamp'},
+				level           => $dump->{'level'},
+				storage_name	=> $self->{'dest_storage_name'}));
+	    $self->{'catalog'}->add_copy_cmd(config	    => get_config_name(),
+					     src_storage    => $dump->{'storage'},
+					     label	    => $dump->{'parts'}[1]->{'label'},
+					     hostname	    => $dump->{'hostname'},
+					     diskname	    => $dump->{'diskname'},
+					     dump_timestamp => $dump->{'dump_timestamp'},
+					     level	    => $dump->{'level'},
+					     dst_storage    => $self->{'dest_storage_name'},
+					     working_pid    => $$,
+					     status	    => $Amanda::Cmdfile::CMD_TODO,
+					     size	    => $dump->{'bytes'},
+					     start_time	    => time()+0);
+	}
 	return $self->quit(0);
     }
 

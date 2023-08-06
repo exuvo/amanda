@@ -35,6 +35,7 @@ my $exit_status    =  0;
 
 my $opt_detail;
 my $opt_summary;
+my $opt_taped;
 my $opt_stats;
 my $opt_config;
 my $opt_file;
@@ -42,7 +43,7 @@ my $opt_locale_independent_date_format = 0;
 
 sub usage() {
 	print "amstatus [--file amdump_file]\n";
-	print "         [--[no]detail] [--[no]summary] [--[no]stats]\n";
+	print "         [--[no]detail] [--[no]summary] [--[no]taped] [--[no]stats]\n";
 	print "         [--[no]locale-independent-date-format]\n";
 	print "         [--config] <config>\n";
 	exit 0;
@@ -61,6 +62,7 @@ Getopt::Long::Configure(qw{ bundling });
 GetOptions(
     'detail!'                         => \$opt_detail,
     'summary!'                        => \$opt_summary,
+    'taped!'                          => \$opt_taped,
     'stats|statistics!'               => \$opt_stats,
 #    'dumping|d!'                      => \$opt_dumping,
 #    'waitdumping|wdumping!'           => \$opt_waitdumping,
@@ -136,14 +138,17 @@ Amanda::Util::finish_setup($RUNNING_AS_DUMPUSER);
 if ($nb_options == 0) {
 	$opt_detail      = 1;
 	$opt_summary     = 1;
+	$opt_taped       = 1 if !defined $opt_taped;
 	$opt_stats       = 1;
 } elsif ($set_options > 0) {
 	$opt_detail  = 0 if !defined $opt_detail;
 	$opt_summary = 0 if !defined $opt_summary;
+	$opt_taped   = $opt_summary if !defined $opt_taped;
 	$opt_stats   = 0 if !defined $opt_stats;
 } else {
 	$opt_detail  = 1 if !defined $opt_detail;
 	$opt_summary = 1 if !defined $opt_summary;
+	$opt_taped   = $opt_summary if !defined $opt_taped;
 	$opt_stats   = 1 if !defined $opt_stats;
 }
 
@@ -358,18 +363,20 @@ if ($opt_summary) {
     printf "%-16s %4s %10s %10s\n", "----------------", "----", "---------", "---------";
     summary($status, 'disk', 'disk', 0, 0, 0, 0);
     summary($status, 'estimated', 'estimated', 0, 1, 0, 0);
-    summary_storage($status, 'flush', 'flush', 1, 0, 0, 0);
+    summary_storage($status, 'flush', 'flush', 1, 0, 0, 0, 1);
     summary($status, 'dump_failed', 'dump failed', 1, 1, 1, 1);
     summary($status, 'wait_for_dumping', 'wait for dumping', 0, 1, 0, 1);
     summary($status, 'dumping_to_tape', 'dumping to tape', 1, 1, 1, 1);
     summary($status, 'dumping', 'dumping', 1, 1, 1, 1);
     summary($status, 'dumped', 'dumped', 1, 1, 1, 1);
-    summary_storage($status, 'wait_for_writing', 'wait for writing', 1, 1, 1, 1);
-    summary_storage($status, 'wait_to_flush'   , 'wait to flush'   , 1, 1, 1, 1);
-    summary_storage($status, 'writing_to_tape' , 'writing to tape' , 1, 1, 1, 1);
-    summary_storage($status, 'dumping_to_tape' , 'dumping to tape' , 1, 1, 1, 1);
-    summary_storage($status, 'failed_to_tape'  , 'failed to tape'  , 1, 1, 1, 1);
-    summary_storage($status, 'taped'           , 'taped'           , 1, 1, 1, 1);
+    summary_storage($status, 'wait_for_writing', 'wait for writing', 1, 1, 1, 1, 1);
+    summary_storage($status, 'wait_to_flush'   , 'wait to flush'   , 1, 1, 1, 1, 1);
+    summary_storage($status, 'wait_to_vault'   , 'wait to vault'   , 1, 1, 1, 1, 0);
+    summary_storage($status, 'writing_to_tape' , 'writing to tape' , 1, 1, 1, 1, 1);
+    summary_storage($status, 'dumping_to_tape' , 'dumping to tape' , 1, 1, 1, 1, 1);
+    summary_storage($status, 'failed_to_tape'  , 'failed to tape'  , 1, 1, 1, 1, 1);
+    summary_storage($status, 'vaulting'        , 'vaulting'        , 1, 1, 1, 1, 0);
+    summary_storage($status, 'taped'           , 'taped'           , 1, 1, 1, 1, 1);
 
     print "\n";
     if ($status->{'idle_dumpers'} == 0) {
@@ -389,6 +396,12 @@ if ($opt_summary) {
 	    my $taper = $status->{'storage'}->{$storage}->{'taper'};
 	    next if !$taper;
 
+	    if ($status->{'taper'}->{$taper}->{'error'}) {
+		printf "%-11s qlen: %d   (%s)\n", "$storage",
+					   $status->{'qlen'}->{'tapeq'}->{$taper} || 0,
+					   $status->{'taper'}->{$taper}->{'error'};
+		next;
+	    }
 	    printf "%-11s qlen: %d\n", "$storage",
 				       $status->{'qlen'}->{'tapeq'}->{$taper} || 0;
 
@@ -404,10 +417,10 @@ if ($opt_summary) {
 		    my $wname = $1;
 		    printf "%16s:", $wname;
 		    if (defined ($wmessage)) {
-			if ($wmessage eq "Idle") {
-			    print " $wmessage\n";
-			} else {
+			if (defined $whost and defined $wdisk) {
 			    print " $wmessage ($whost:$wdisk)\n";
+			} else {
+			    print " $wmessage\n";
 			}
 		    } else {
 			if (defined $whost and defined $wdisk) {
@@ -563,10 +576,13 @@ sub summary_storage {
     my $print_esize = shift;
     my $print_rstat = shift;
     my $print_estat = shift;
+    my $print_if_empty = shift;
 
     if (!$status->{'stat'}->{$key}->{'storage'} ||
 	keys %{$status->{'stat'}->{$key}->{'storage'}} == 0) {
-	printf "$name\n";
+	if ($print_if_empty) {
+	    printf "$name\n";
+	}
 	return;
     }
     if ($nb_storage > 1) {
@@ -595,7 +611,7 @@ sub summary_storage {
 	$line =~ s/ *$//g; #remove trailing space
 	print "$line\n";
 
-	if ($key eq 'taped') {
+	if ($key eq 'taped' && $opt_taped) {
 	    my $taper = $status->{'storage'}->{$storage}->{'taper'};
 	    summary_taped($status, $taper);
 	}

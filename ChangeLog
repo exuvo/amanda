@@ -1,3 +1,346 @@
+2023-07-26 amandaTrusted <amandaTrusted@Zmanda.com>
+    * Fixed: arg checking for runtar.c (CVE-2023-30577)
+
+2023-02-25 amandaTrusted <amandaTrusted@Zmanda.com>
+    * Fixed: removed vulnerable jQuery dependency
+    * Fixed: fix suppressed 1st char of error message in common-src/bsdtcp-security.c
+    * docs: improved README with Markdown
+    * docs: updated README file name for docs in Debian builds
+    * Fixed: post_inst_functions.sh to create amkey
+    * Fixed: added extern keyword for tu_debugging_enabled declaration in testutils.h
+    * Fixed: https://sogis.eu complaint symmetric encryption key derivation algorithm
+    * Fixed: removed perror to fix information leak vulnerability found in the calcsize SUID binary. (CVE-2022-37703)
+    * Fixed: added filter for RSH environment settings in rundump to fix privilege escalation vulnerability (CVE-2022-37704)
+    * Fixed: arg checking for runtar.c (CVE-2022-37705)
+
+
+2022-05-23 chassell <chris.hassell@betsol.com>
+	* Purpose: set a default to disable auto-label from claiming non-amanda and "other-config" labels as if available
+	* Changes: Add a build flag to re-include options.  Block use of two enums for the features.  Change perl uses to null-set options.
+	* File: config/amanda/tape.m4: adds build flag to prevent auto-label issues: "Define if unsafe erasure of tapes is allowed"
+	* File: common-src/conffile.c: exclude definition(s) of CONF_OTHER_CONFIG and CONF_NON_AMANDA enums
+	* File: common-src/conffile.h: add C-macros of null-set for AL_OTHER_CONFIG and AL_NON_AMANDA flag bits
+	* File: installcheck/{Amanda_Changer.pl,Amanda_Config.pl}: tests for OTHER_CONFIG and NON_AMANDA options
+
+2022-06-23 chassell <chris.hassell@betsol.com>
+	* issue#160: found problem with code refactor earlier
+
+2019-12-10 chassell <chris.hassell@betsol.com>
+	* 3 5.default amanda security (#142)
+	* amanda-security.conf becomes a default installed file
+	* adding final step in install files
+
+2019-12-03 chassell <chris.hassell@betsol.com>
+	* handle tape scan more correctly (#136)
+	* check the correct variable to ensure exclude-list is not used (#138)
+	* modernize s3/aws interface (#137)
+	* remove strange use of @prefix@ (#135)
+	* perl/Amanda/Taper/Scan/lexical.pm (last_use_label_from_pool):  issue #126
+		bad copy-paste fail fix
+
+2019-11-28  Daniel T Chen <crimsun@ubuntu.com>
+	* amar-src/Makefile.am, ndmp-src/Makefile.am, perl/Makefile.am,
+	  server-src/Makefile.am, xfer-src/Makefile.am: issue 129,
+		add libamanda.la, libndmlib.la and libamxfer.la into important linking
+
+2019-11-28  Debian Packagers <chris.hassell@betsol.com>
+	* perl/Amanda/Interactivity.pm, server-src/amtape.pl: issue #128,
+		exchange 'stdin' to 'tty' as interactivity label
+
+2019-11-28  Chris Hassell <chris.hassell@betsol.com>
+	* application-src/amsamba.pl (command_estimate): issue #132 fixed
+		use wildcard to force samba to estimate from dir and not whole disk
+
+2019-11-28  Chris Hassell <chris.hassell@betsol.com>
+	* perl/Amanda/Taper/Scan/lexical.pm (last_use_label_from_pool):  issue #126,
+		lexical.pm now uses matching pool or undefined pool for tapes
+
+2019-11-07  Debian Packagers <chris.hassell@betsol.com>
+	* perl/Amanda/Chunker/Controller.pm: rounding bug for very small backups
+
+2019-11-07  Orion Poplawski <orion@nwra.com>
+	* perl/Amanda/Report/human.pm: Emit a note on small estimates
+
+2019-11-07  Diego Zuccato <diego.zuccato@unibo.it>, Stefan G. Weichinger <office@oops.co.at>
+	* application-src/amsamba.pl: accept "Unable to initialize messaging context" errs
+
+2019-11-07  Debian Packagers <chris.hassell@betsol.com>
+	* perl/Amanda/Amflush.pm: Issue #86: prevent AMINF from infinite loop causing
+
+2019-11-05  Debian Packagers <chris.hassell@betsol.com>
+	* common-src/protocol.c:  double-call reduces latency/missed alarms
+
+2019-11-05  Will Aoki <waoki@umnh.utah.edu>
+	* perl/Amanda/Changer/robot.pm: add Carp module use line
+
+2019-05-07  Chris Hassell <chris.hassell@betsol.com>
+	* config/*: use automake --add-missing to copy files each build
+	    ( compile config.guess config.sub depcomp install-sh missing mkinstalldirs
+		test-driver ylwrap )
+	* device-src/Makefile.am, ndmp-src/Makefile.am, perl/Makefile.am,
+	  config/amanda/amanda_configure.m4: use search for stdint.h and libtirpc
+	* config/amanda/progs.m4: update quotes to make it work
+	* packaging/deb/amanda-backup-client.*: remove extra path-patterns
+	* packaging/deb/compat: allow level 5 and below compatibility
+	* packaging/deb/rules: build manpages by default
+	* packaging/rpm/amanda.spec.src: build manpages by default
+
+2019-04-26  Badal Dave <badaladave@gmail.com>
+	* perl/Amanda/Taper/Scribe.pm: Adding tape barcode info to logs
+
+2019-01-18  Hiten Shah <hiten.shah@betsol.com>
+	* application-src/amgtar.c: Filter GNU tar arguments
+	* application-src/amstar.c: Filter star arguments
+	* client-src/rundump.c: Filter dump and xfsdump arguments
+	
+2018-02-27  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* common-src/amflock-test.c (int_counter): Fix call to file_lock_write
+	* common-src/amutil.c (unquote_string): Fix
+	* common-src/fileheader-test.c, common-src/ipc-binary-test.c,
+	  common-src/match-test.c: Fix memory leak
+
+2018-02-26  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* common-src/local-security.c: Do not call initgroups since we are no
+	  longer suid root
+
+2018-02-23  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c: s/g_free/amfree/ for sp->try_again_message
+
+2018-02-19  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* client-src/sendbackup-dump.c, client-src/sendbackup-gnutar.c,
+	  client-src/sendbackup.c: Fix fd managment
+
+2018-02-12  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Cmdfile.swg (get_nb_image_cmd_for_storage): Return the
+	  result
+
+2018-02-12  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Changer/disk.pm: Make slot dit with permission 0700
+
+2018-02-12  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* common-src/protocol.c (protocol_sendreq): Cache the result of
+	  get_platform_and_distro, calling it for each request take too much
+	  time
+
+2018-02-05  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* application-src/ampgsql.pl: Call _get_pg_version after
+	  setting $self->{'props'}->{'psql-path'}
+
+2018-01-31  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Vault.pm: Run the driver if run_delayed is set
+	* server-src/amvault.pl: New --run-delayed argument
+	* man/xml-source/amvault.8.xml: Document it
+	* NEWS, ReleaseNotes: Add it
+
+2018-01-31  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Vault.pm: Add vault command to the commands file if
+	  delayed is set
+	* server-src/amvault.pl: New --delayed argument
+	* man/xml-source/amvault.8.xml: Document it
+	* NEWS, ReleaseNotes: Add it
+
+2018-01-31  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Vault.pm: Verify the dump is not already in the dest
+	  storage if uniq is set
+	* server-src/amvault.pl: New --uniq, --no-uniq argument
+	* man/xml-source/amvault.8.xml: Document it
+	* NEWS, ReleaseNotes: Add it
+
+2018-01-30  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* application-src/ampgsql.pl: exclude pg_wal/*
+
+2018-01-29  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/find.c (dump_storage_hash_exist): g_free(key)
+
+2018-01-29  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c server-src/planner.c: Don't do some check
+	  if --no-dump or no storage defined
+
+2018-01-29  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* man/xml-source/amanda-changers.7.xml: Document the diskflat changer
+	* man/xml-source/amanda-devices.7.xml: The diskflat device must use
+	  the diskflat changer
+
+2018-01-26  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c: Do not add a COPY command if the dump is
+	  already on the storage
+	* server-src/driverio.c (startup_vault_tape_process): Use same taper
+	  as storage
+
+2018-01-26  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/cmdfile.c (cmdfile_get_nb_image_cmd_for_storage): New
+	  function
+	* server-src/cmdfile.h (cmdfile_get_nb_image_cmd_for_storage): Add
+	  prototype
+	* server-src/find.c (make_dump_storage_hash, add_dump_storage_hash,
+	  dump_storage_hash_exist): New functions to keep track of all
+	  available dump
+	* server-src/find.h (make_dump_storage_hash, add_dump_storage_hash,
+	  dump_storage_hash_exist): Add prototypes
+
+2018-01-24  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c: Send CLOSE-VOLUME command only if the volume
+	  is opened
+
+2018-01-24  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c: fix queue handling
+
+2018-01-23  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* application-src/ampgsql.pl: s/xlog/wal/ in function name for version
+	  10 and newer
+
+2018-01-22  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* installcheck/success-dumper-taper-vault.pl: Merge error
+
+2018-01-22  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c (server-src/driver.c): Remove function
+
+2018-01-22  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c (tape_action): Improvement
+
+2018-01-22  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c (idle_taper): Check wtaper->vaultqs.vaultq.head
+
+2018-01-22  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c: Set sent_first_write and last_started_wtaper
+
+2018-01-22  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c: Improve new_tape
+
+2018-01-22  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c: Set TAPER_STATE_TAPE_STARTED on NEW-TAPE
+
+2018-01-22  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c: Send dump to first storage
+
+2018-01-22  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Status.pm: Add vaulting information
+	* server-src/amstatus.pl: Print vaulting information
+	* installcheck/success-dumper-taper.pl: Fix for vaulting information
+
+2018-01-22  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c: Keep track of all label in use
+
+2018-01-22  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c: Set wtaper->current_source_label
+
+2018-01-22  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c: Set wtaper->current_dest_label
+
+2018-01-19  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Taper/Worker.pm: Set input_errors on Recovery error
+
+2018-01-19  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Taper/Scribe.pm (_dbg): Improve debugging
+
+2018-01-19  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Taper/Controller.pm: Quit the Clerk on START_TAPER,
+	  Add debugging
+
+2018-01-19  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/ScanInventory.pm (_scan_): Set scanning to 0 on error
+
+2018-01-19  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Changer.pm, perl/Amanda/Changer/diskflat.pm: Try to get
+	  the lock more often, otherwise we might never get it if another
+	  thread lock it often
+
+2018-01-19  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* common-src/match.c (match_labelstr_template, match_labelstr):
+	  Checklabel is not NULL
+
+2018-01-11  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* man/xml-source/amanda.conf.5.xml: Add rest-api-port
+
+2018-01-10  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/amstatus.pl: Typo
+
+2018-01-10  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/amstatus.pl: Add a --[no]taped argument
+	* man/xml-source/amstatus.8.xml: Document it
+	* NEWS, ReleaseNotes: Add it
+
+2018-01-08  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c (tape_action): fix for max_dle_by_volume
+
+2018-01-08  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* client-src/ambackup.pl: Fix usage message
+
+2018-01-05  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Status.pm, server-src/amstatus.pl: Fix when taper crash
+
+2018-01-05  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* server-src/driver.c (tape_action): fix for max_dle_by_volume
+
+2018-01-03  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Rest/Runs.pm: Undo, bsd_glob is not exported on older
+	  perl
+
+2018-01-03  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* common-src/bsdtcp-security.c,
+	  common-src/conffile.c,
+	  common-src/ssl-security.c,
+	  oldrecover-src/extract_list.c,
+	  server-src/dumper.c: Fix warning in newer gcc
+	* perl/Amanda/Rest/Runs.pm,: Fix warning in newer perl
+	* installcheck/Installcheck.pm: Use File::Glob::bsd_glob
+
+2017-12-20  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* common-src/conffile.c: Parse subsection name with or without double
+	  quote
+	* installcheck/Amanda_Config.pl: Test it
+	* installcheck/Installcheck/Config.pm: set interactivity after they
+	  are defined
+
+2017-12-18  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Process.pm (process_alive): Can be called a class method
+	* perl/Amanda/Util.swg (is_pid_alive): New pname argument, call
+	  Amanda::Process::process_alive if pname is set
+	* perl/Amanda/Status.pm: Call is_pid_alive with 'driver' as the pname
+
+2017-12-18  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Status.pm: Use Amanda::Util::is_pid_alive
+
+2017-12-18  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Util.swg (is_pid_alive): Use kill instead of
+	  Amanda::Process
+
+2017-12-13  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* common-src/amfeatures.c: Add fe_sendbackup_statedone
+	* common-src/amfeatures.h: Add fe_sendbackup_statedone
+	* amandad-src/amandad.c, client-src/sendbackup.c,
+	  server-src/dumper.c: Fix for directtcp data_path
+
+2017-12-13  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* common-src/conffile.c: Accept define with double quote
+
+2017-12-13  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Taper/Scribe.pm: Fix perl warning on taper failure
+
+2017-12-13  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Label.pm: Fix error message
+	* installcheck/amlabel.pl: Fix
+
+2017-12-12  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Status.pm: Also use 'driver: pid' line to detect
+	  running version
+	* server-src/amstatus.pl: Fix perl warning
+	* installcheck/Installcheck/Catalogs.pm: Fix
+
+2017-12-04  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* common-src/ammessage.c (get_errno_string, get_errno_number): New
+	  functions toreturn errno string and number
+	* common-src/ammessage.h: Add prototypes
+	* common-src/ambind.c: Print the errno_string in error message
+	* common-src/amutil.c: Parse errno string is ambind error message and
+	  set errno
+
+2017-12-04  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* installcheck/Amanda_Archive.pl: Fix parameter order
+
+2017-12-01  Jean-Louis Martineau <JMartineau@carbonite.com>
+	* perl/Amanda/Archive.swg (read_finish_file_cb): Fix parameter order
+
 2017-11-29  Jean-Louis Martineau <JMartineau@carbonite.com>
 	* application-src/ampgsql.pl: Accept --target asa synonyme for
 	  --directory

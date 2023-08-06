@@ -110,6 +110,7 @@ use Amanda::Util qw( :constants );
 use Getopt::Long;
 use Amanda::Cmdline qw( :constants parse_dumpspecs );
 use Amanda::Vault;
+use Amanda::Amdump;
 
 sub usage {
     my ($msg) = @_;
@@ -118,9 +119,9 @@ sub usage {
 **NOTE** this interface is under development and will change in future releases!
 
 Usage: amvault [-o configoption...] [-q] [--quiet] [-n] [--dry-run]
-	   [--exact-match] [--export] [--no-interactivity]
+	   [--exact-match] [--export] [--nointeractivity]
 	   [--src-labelstr labelstr] [--src-storage storage]
-	   [--dest-storage storage]
+	   [--no-uniq] [--delayed] [run-delayed] [--dest-storage storage]
 	   [--fulls-only] [--latest-fulls] [--incrs-only]
 	   [--src-timestamp src-timestamp]
 	   config
@@ -140,6 +141,10 @@ Usage: amvault [-o configoption...] [-q] [--quiet] [-n] [--dry-run]
     --latest-fulls: copy the latest full of every dle
     --incrs-only: only copy incremental (level > 0) dumps
     --src-timestamp: the timestamp of the Amanda run that should be vaulted
+    --no-uniq: Vault a dump even if a copy is already in the dest-storage
+    --uniq: Do not vault something that is already in the dest-storage
+    --delayed: Schedule the vault to be run later
+    --run-delayed: Run the delayed vault
 
 Copies dumps selected by the specified filters onto volumes on the storage
 <dest-storage>.  If <src-timestamp> is "latest", then the most recent run of
@@ -171,6 +176,9 @@ my $opt_src_labelstr;
 my $opt_src_storage_name;
 my $opt_dest_storage_name;
 my $opt_interactivity = 1;
+my $opt_uniq = undef;
+my $opt_delayed = 0;
+my $opt_run_delayed = 0;
 
 debug("Arguments: " . join(' ', @ARGV));
 Getopt::Long::Configure(qw{ bundling });
@@ -197,6 +205,9 @@ GetOptions(
     'src-storage=s' => \$opt_src_storage_name,
     'dest-storage=s' => \$opt_dest_storage_name,
     'interactivity!' => \$opt_interactivity,
+    'uniq!' => \$opt_uniq,
+    'delayed!' => \$opt_delayed,
+    'run-delayed' => \$opt_run_delayed,
     'version' => \&Amanda::Util::version_opt,
     'help' => \&usage,
 ) or usage("usage error");
@@ -235,6 +246,12 @@ $cfgerr_level = Amanda::Disklist::read_disklist('filename' => $diskfile);
 if ($cfgerr_level >= $CFGERR_ERRORS) {
     print STDERR "errors processing disklist\n";
     exit(1);
+}
+
+my $tlf = Amanda::Config::config_dir_relative(getconf($CNF_TAPELIST));
+my ($tl, $message) = Amanda::Tapelist->new($tlf);
+if (defined $message) {
+    die "Could not read the tapelist: $message";
 }
 
 my $exit_status = 0;
@@ -294,6 +311,9 @@ my $messages;
     incrs_only => $opt_incrs_only,
     opt_export => $opt_export,
     interactivity => $interactivity,
+    uniq => $opt_uniq,
+    delayed => $opt_delayed,
+    run_delayed => $opt_run_delayed,
     config_overrides_opts => \@config_overrides_opts,
     user_msg => \&user_msg,
     delay => $delay,

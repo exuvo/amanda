@@ -138,6 +138,8 @@ libDevice_la_SOURCES = Amanda/Device.c $(AMGLUE_SWG)
 libDevice_la_LDFLAGS = $(PERL_EXT_LDFLAGS)
 libDevice_la_LIBADD = amglue/libamglue.la \
 	$(top_builddir)/device-src/libamdevice.la \
+	$(top_builddir)/xfer-src/libamxfer.la \
+	$(top_builddir)/ndmp-src/libndmlib.la \
 	$(top_builddir)/common-src/libamanda.la
 Amanda_DATA += Amanda/Device.pm
 MAINTAINERCLEANFILES += Amanda/Device.c Amanda/Device.pm
@@ -470,8 +472,9 @@ if WANT_NDMP
 # PACKAGE: Amanda::NDMP
 libNDMPdir = $(amperldir)/auto/Amanda/NDMP
 libNDMP_LTLIBRARIES = libNDMP.la
+AM_CPPFLAGS += ${TIRPC_CFLAGS}
 libNDMP_la_SOURCES = Amanda/NDMP.c $(AMGLUE_SWG)
-libNDMP_la_LDFLAGS = $(PERL_EXT_LDFLAGS)
+libNDMP_la_LDFLAGS = $(PERL_EXT_LDFLAGS) ${TIRPC_LDFLAGS}
 libNDMP_la_LIBADD = amglue/libamglue.la \
 	$(top_builddir)/common-src/libamanda.la \
 	$(top_builddir)/ndmp-src/libndmlib.la
