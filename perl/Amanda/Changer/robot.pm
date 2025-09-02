@@ -2496,7 +2496,7 @@ sub set_device_error {
 package Amanda::Changer::robot::Interface;
 
 # The physical interface to the changer is abstracted out to allow several
-# implementations (see chg-ndmp for one of them).  This API is "reasonably
+# implementations.  This API is "reasonably
 # stable", but is really only known to this changer and its subclasses, so it's
 # not documented in POD.  The methods are:
 #

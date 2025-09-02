@@ -7,14 +7,9 @@ include $(top_srcdir)/config/automake/precompile.am
 AM_CPPFLAGS =	-I$(top_builddir)/common-src \
 		-I$(top_srcdir)/common-src \
 		-I$(top_srcdir)/xfer-src \
-		-I$(top_srcdir)/ndmp-src \
 		-I$(top_srcdir)/gnulib
 
 AM_CFLAGS = $(AMANDA_WARNING_CFLAGS) $(AMANDA_FILE_CFLAGS)
-if GCC_COMPILER
-# ndmp-device.c includes files with old-skool prototypes, so:
-AM_CFLAGS += -Wno-strict-prototypes
-endif
 AM_LDFLAGS = $(AMANDA_STATIC_LDFLAGS) $(AS_NEEDED_FLAGS)
 
 sbin_PROGRAMS =
@@ -61,13 +56,6 @@ if WANT_DVDRW_DEVICE
 libamdevice_la_SOURCES += dvdrw-device.c
 endif
 
-if WANT_NDMP_DEVICE
-AM_CPPFLAGS += ${TIRPC_CFLAGS}
-libamdevice_la_SOURCES += ndmp-device.c
-libamdevice_la_LIBADD += ../ndmp-src/libndmlib.la
-libamdevice_la_LDFLAGS += ${TIRPC_LDFLAGS}
-endif
-
 ## automake-style tests
 
 TESTS =
@@ -100,4 +88,3 @@ aminclude_HEADERS =
 
 install-build-dependencies: install-data-am
 	${SED} -e 's@ ${amlibdir}/libam@ ${DESTDIR}${amlibdir}/libam@g' -i ${DESTDIR}/${amlibdir}/libamdevice.la
-	${SED} -e 's@ ${amlibdir}/libndmlib@ ${DESTDIR}${amlibdir}/libndmlib@g' -i ${DESTDIR}/${amlibdir}/libamdevice.la

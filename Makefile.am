@@ -18,9 +18,6 @@ endif
 if WANT_AMPLOT
 PLOT_SUBDIRS = amplot
 endif
-if WANT_NDMP
-NDMP_SUBDIRS = ndmp-src
-endif
 if WANT_REST_SERVER
 REST_SERVER_SUBDIRS = rest-server
 endif
@@ -32,7 +29,6 @@ SUBDIRS = . \
 	amar-src \
 	amandad-src \
 	xfer-src \
-	$(NDMP_SUBDIRS) \
 	$(TAPE_SUBDIRS) \
 	$(CLIENT_SUBDIRS) \
 	$(SERVER_SUBDIRS) \
@@ -120,14 +116,12 @@ install-build-dependencies:
 if WANT_SERVER
 	(cd common-src ; make install-build-dependencies)
 	(cd xfer-src ; make install-build-dependencies)
-	(cd ndmp-src ; make install-build-dependencies)
 	(cd device-src ; make install-build-dependencies)
 endif
 	mkdir ${DESTDIR}/include
 	mkdir ${DESTDIR}/include/common-src
 	mkdir ${DESTDIR}/include/device-src
 	mkdir ${DESTDIR}/include/xfer-src
-	mkdir ${DESTDIR}/include/ndmp-src
 	mkdir ${DESTDIR}/include/amandad-src
 	mkdir ${DESTDIR}/include/server-src
 	mkdir ${DESTDIR}/include/client-src

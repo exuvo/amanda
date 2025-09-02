@@ -154,11 +154,6 @@ restore_tests_no_check_userid = \
 	amrecover
 all_tests += $(restore_tests_no_check_userid)
 
-ndmp_tests = \
-	Amanda_Changer_ndmp \
-	Amanda_NDMP
-all_tests += $(ndmp_tests)
-
 mock_tests = \
 	mock_mtx
 all_tests += $(mock_tests)
@@ -207,13 +202,6 @@ if !CHECK_USERID
 tests += $(restore_tests_no_check_userid)
 endif
 endif
-endif
-endif
-
-# tests that need a server with NDMP support
-if WANT_NDMP
-if WANT_SERVER
-tests += $(ndmp_tests)
 endif
 endif
 
@@ -268,11 +256,6 @@ catalogs = \
 	catalogs/vault2.cat \
 	catalogs/vault3.cat
 EXTRA_DIST += $(catalogs)
-
-
-# and finally some development utilities
-noinst_SCRIPTS = \
-	run-ndmp
 
 CHECK_PERL_FLAGS=-I$(top_srcdir)/installcheck
 

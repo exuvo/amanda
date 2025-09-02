@@ -63,7 +63,6 @@ my $debug = !exists $ENV{'HARNESS_ACTIVE'};
 #   holding_no_colon_zero - do not append a :0 to the holding filename in DEVICE=
 #   no_tapespec    - do not send a tapespec in LABEL=, and send the first partnum in FSF=
 #   no_fsf         - or don't send the first partnum in FSF= and leave amidxtaped to guess
-#   ndmp           - using NDMP device (so expect directtcp connection)
 #   bad_cmd        - send a bogus command line and expect an error
 #   bad_quoting    - send a bogus DISK= without fe_amrecover_correct_disk_quoting
 #   recovery_limit - set a non-matching recovery-limit config
@@ -133,11 +132,7 @@ sub run_amidxtaped {
 			 or $params{'holding_err'}
 			 or $params{'bad_cmd'});
 
-	if ($params{'ndmp'}) {
-	    $chg_name = "ndmp_server"; # changer name from ndmp dumpcache
-	} else {
-	    $chg_name = "chg-disk:" . Installcheck::Run::vtape_dir();
-	}
+  $chg_name = "chg-disk:" . Installcheck::Run::vtape_dir();
 
 	alarm(120);
 	local $SIG{'ALRM'} = sub {
@@ -157,7 +152,6 @@ sub run_amidxtaped {
 	$testmsg .= $params{'digit_end'}? "digits " : "";
 	$testmsg .= $params{'bad_auth'}? "bad_auth " : "";
 	$testmsg .= $params{'holding_err'}? "holding_err " : "";
-	$testmsg .= $params{'ndmp'}? "ndmp " : "";
 	$testmsg .= $params{'holding_no_colon_zero'}? "holding-no-:0 " : "";
 	$testmsg .= $params{'no_tapespec'}? "no-tapespec " : "";
 	$testmsg .= $params{'no_fsf'}? "no-fsf " : "";
@@ -704,10 +698,8 @@ sub run_amidxtaped {
 	    my @datapath_evts;
 	    if ($params{'datapath'} eq 'amanda') {
 		@datapath_evts = ('SENT-DATAPATH', 'GOT-DP-AMANDA', 'SENT-DATAPATH-OK');
-	    } elsif ($params{'datapath'} eq 'directtcp' and not $params{'ndmp'}) {
+	    } elsif ($params{'datapath'} eq 'directtcp') {
 		@datapath_evts = ('SENT-DATAPATH', 'GOT-DP-AMANDA', 'SENT-DATAPATH-OK');
-	    } elsif ($params{'datapath'} eq 'directtcp' and $params{'ndmp'}) {
-		@datapath_evts = ('SENT-DATAPATH', 'GOT-DP-DIRECT-TCP', 'SENT-DATAPATH-OK');
 	    }
 
 	    @exp_events = (
@@ -893,34 +885,6 @@ Installcheck::Dumpcache::load('compress');
 test(dumpspec => 0, emulate => 'amandad',
      datapath => 'none', header => 1,
      splits => 'basic', feedme => 0, holding => 0);
-
-## directtcp device (NDMP)
-
-SKIP: {
-    skip "not built with ndmp and server", 5 unless
-	Amanda::Util::built_with_component("ndmp") and
-	Amanda::Util::built_with_component("server");
-
-    my $ndmp = Installcheck::Mock::NdmpServer->new();
-    Installcheck::Dumpcache::load('ndmp');
-    $ndmp->edit_config();
-
-    # test a real directtcp transfer both with and without a header
-    test(emulate => 'amandad', splits => 'basic',
-	datapath => 'directtcp', header => 1, ndmp => $ndmp);
-    test(emulate => 'amandad', splits => 'basic',
-	datapath => 'directtcp', header => 0, ndmp => $ndmp);
-
-    # and likewise an amanda transfer with a directtcp device
-    test(emulate => 'amandad', splits => 'basic',
-	datapath => 'amanda', header => 1, ndmp => $ndmp);
-    test(emulate => 'amandad', splits => 'basic',
-	datapath => 'amanda', header => 0, ndmp => $ndmp);
-
-    # and finally a datapath-free transfer with such a device
-    test(emulate => 'amandad', splits => 'basic',
-	datapath => 'none', header => 1, ndmp => $ndmp);
-}
 
 ## cleanup
 

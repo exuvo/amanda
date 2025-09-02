@@ -50,7 +50,6 @@ AC_CONFIG_FILES([
     gnulib/Makefile
     installcheck/Makefile
     man/Makefile
-    ndmp-src/Makefile
     oldrecover-src/Makefile
     packaging/Makefile
     perl/amglue/Makefile

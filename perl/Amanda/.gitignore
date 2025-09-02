@@ -24,8 +24,6 @@
 /Logfile.pm
 /MainLoop.c
 /MainLoop.pm
-/NDMP.c
-/NDMP.pm
 /Paths.pm
 /Tapelist.c
 /Tapelist.pm

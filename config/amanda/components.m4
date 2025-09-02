@@ -20,7 +20,6 @@ AC_DEFUN([AMANDA_CHECK_COMPONENTS], [
     AC_REQUIRE([AMANDA_WITHOUT_AMRECOVER])
     AC_REQUIRE([AMANDA_WITH_CLIENT_ONLY]) dnl deprecated
     AC_REQUIRE([AMANDA_WITH_SERVER_ONLY]) dnl deprecated
-    AC_REQUIRE([AMANDA_WITHOUT_NDMP])
     AC_REQUIRE([AMANDA_WITHOUT_REST_SERVER])
 
     # detect invalid combinations of components
@@ -35,7 +34,6 @@ AC_DEFUN([AMANDA_CHECK_COMPONENTS], [
     AM_CONDITIONAL(WANT_RESTORE, $WANT_RESTORE)
     AM_CONDITIONAL(WANT_SERVER, $WANT_SERVER)
     AM_CONDITIONAL(WANT_RECOVER, $WANT_RECOVER)
-    AM_CONDITIONAL(WANT_NDMP, $WANT_NDMP)
     AM_CONDITIONAL(WANT_REST_SERVER, $WANT_REST_SERVER)
 
     AM_CONDITIONAL(WANT_TAPE, $WANT_SERVER || $WANT_RESTORE)
@@ -64,11 +62,6 @@ AC_DEFUN([AMANDA_CHECK_COMPONENTS], [
 	AMANDA_COMPONENTS="$AMANDA_COMPONENTS amrecover";
     else
 	missing_components="$missing_components (no amrecover)";
-    fi
-    if $WANT_NDMP; then
-	AMANDA_COMPONENTS="$AMANDA_COMPONENTS ndmp";
-    else
-	missing_components="$missing_components (no ndmp)";
     fi
     if $WANT_REST_SERVER; then
 	AMANDA_COMPONENTS="$AMANDA_COMPONENTS rest-server";
@@ -165,42 +158,6 @@ AC_DEFUN([AMANDA_WITHOUT_AMRECOVER], [
 	    *) AC_MSG_ERROR([You must not supply an argument to --with-amrecover option.]) ;;
 	    esac
 	])
-])
-
-# SYNOPSIS
-#
-#   AMANDA_WITHOUT_NDMP
-#
-# OVERVIEW
-#
-#   Add option --without-ndmp, and set WANT_NDMP to
-#   true or false, accordingly.
-#
-AC_DEFUN([AMANDA_WITHOUT_NDMP], [
-    WANT_NDMP=${WANT_NDMP-true}
-    AC_ARG_WITH(ndmp,
-	AS_HELP_STRING([--without-ndmp],
-		       [do not build ndmp]), [
-	    case "$withval" in
-	    y | ye | yes) WANT_NDMP=true;;
-	    n | no) WANT_NDMP=false;;
-	    *) AC_MSG_ERROR([You must not supply an argument to --with-ndmp option.]) ;;
-	    esac
-    ])
-    AC_CHECK_HEADERS(rpc/rpc.h, HAVE_RPC_RPC_H=1)
-    if test x"$WANT_NDMP" = x"true"; then
-	if test x"$HAVE_RPC_RPC_H" = x"1"; then
-	    WANT_NDMP=true
-	else
-	    AMANDA_CHECK_TIRPC
-	    if test x"$HAVE_RPC_RPC_H" = x"1"; then
-		WANT_NDMP=true
-	    else
-		WANT_NDMP=false
-		AMANDA_MSG_WARN([Disabling NDMP because rpc/rpc.h is not found])
-	    fi
-	fi
-   fi
 ])
 
 # SYNOPSIS

@@ -56,11 +56,6 @@ to which has been added:
 
 and a few basic configuration parameters listed below.
 
-=head2 ndmp
-
-Like 'basic', but with an NDMP device.  You will need to use
-L<Installcheck::Mock>'s C<edit_config> to use this.
-
 =head2 parts
 
 A single multi-part dump with nine parts (using a fallback_splitsize of 128k).
@@ -218,23 +213,6 @@ EOLOREM
     # we made a mess of $diskname, so invalidate it
     rmtree("$diskname");
 };
-
-if (Amanda::Util::built_with_component("server")
-    and Amanda::Util::built_with_component("ndmp")) {
-
-    $flavors{'ndmp'} = sub {
-	my $testconf = Installcheck::Run::setup();
-	basic_settings($testconf);
-	use_new_chg_disk($testconf);
-	$testconf->add_dle("localhost $diskname installcheck-test");
-	my $ndmp = Installcheck::Mock::NdmpServer->new();
-	$ndmp->config($testconf);
-	$testconf->write();
-
-	ok(Installcheck::Run::run('amdump', 'TESTCONF'), "amdump for 'ndmp'"),
-	    or amdump_diag("Amdump run failed for 'ndmp'");
-    };
-}
 
 sub generate_and_store {
     my ($flavor) = @_;

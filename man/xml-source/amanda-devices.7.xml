@@ -727,58 +727,6 @@ operations can be emulated with the MTREW and read data operations.</para>
 
 </refsect2>
 
-<refsect2><title>NDMP Device</title>
-<programlisting>
-tapedev "ndmp:my.filer.com:10000@st1"
-device-property "NDMP_USERNAME" "jimmy"
-device-property "NDMP_PASSWORD" "thelock"
-</programlisting>
-
-<para>This device enables Amanda to communicate with a tape service on an NDMP
-server.  The device name specifies the hostname and optionally the TCP port of
-the NDMP server, followed by the name of the tape device on the server
-(<command>st1</command> in the example above).</para>
-
-<para>This device supports LEOM detection.</para>
-
-<refsect3><title>Device-Specific Properties</title>
-
-<para>The properties <command>NDMP_USERNAME</command> and
-<command>NDMP_PASSWORD</command> set the username and password with which to
-access the NDMP server.  The default for both is "ndmp".</para>
-
-<!-- PLEASE KEEP THIS LIST IN ALPHABETICAL ORDER -->
-<variablelist>
- <!-- ==== -->
-<varlistentry><term>INDIRECT</term><listitem>
-(read-write) The default is "yes". You can set it to "no" if the ndmp server
-can be set to a window length of 0.
-</listitem></varlistentry>
- <!-- ==== -->
-<varlistentry><term>NDMP_AUTH</term><listitem>
-(read-write) Authentication method to use to connect to the NDMP server.  One of
-"md5" (default), "text", "none" (for an empty authentication attempt) or "void" (for
-no authentication attempt at all).
-</listitem></varlistentry>
- <!-- ==== -->
-<varlistentry><term>NDMP_PASSWORD</term><listitem>
-(read-write) Password for md5 or text authentications.
-</listitem></varlistentry>
- <!-- ==== -->
-<varlistentry><term>NDMP_USERNAME</term><listitem>
-(read-write) Username for md5 or text authentications.
-</listitem></varlistentry>
- <!-- ==== -->
-<varlistentry><term>READ_BLOCK_SIZE</term><listitem>
-(read-write) This property specifies the block size that will be used for reads; this should be large enough to contain any block that may be read from the device and must be larger than BLOCK_SIZE. See BLOCK_SIZES, above.
-</listitem></varlistentry>
- <!-- === -->
-</variablelist>
-
-</refsect3>
-
-</refsect2>
-
 <refsect2><title>VFS Device</title>
 <programlisting>
 tapedev "file:/path/to/vtape"

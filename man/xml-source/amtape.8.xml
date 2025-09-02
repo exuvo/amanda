@@ -176,7 +176,7 @@ choice='plain'>what</arg>.</para>
 <term><command>verify</command></term>
 <listitem>
 
-<para>Verify the changer is correctly configured. Can be useful for chg-robot and chg-ndmp.</para>
+<para>Verify the changer is correctly configured. Can be useful for chg-robot.</para>
 
 </listitem>
 </varlistentry>

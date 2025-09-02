@@ -51,44 +51,6 @@ C<setup_mock_mtx> sets up a state file for C<mock/mtx> with the given config
 hash, and returns the filename of the state file.  This function must be run
 with the current dirctory pointing to 'installcheck/'.
 
-=head2 ndmjob
-
-Ndmjob can be used to provide an NDMP server, complete with two tape drives and
-a 10-tape changer.  Start it with:
-
-  my $ndmpserver = Installcheck::Mock::NdmpServer->new();
-
-All keyword arguments are optional, and include:
-
-  tape_limit	    size limit for simulated tapes
-
-The resulting object has a number of useful attributes:
-
-  $n->{'port'}	    port the NDMP server is listening on
-  $n->{'changer'}   device name for the NDMP changer
-  $n->{'drive0'}    device name for changer's drive 0
-  $n->{'drive1'}    device name for changer's drive 1
-  $n->{'drive'}	    device name for a drive not attached to the changer,
-		    and already loaded with a volume
-
-The constructor takes the following keyword arguments:
-
-  no_reset => 1	    do not empty out the changer of any existing state or data
-
-The C<config> method, given an L<Installcheck::Config> object, will add the
-necessary config to use C<chg-ndmp>:
-
-  $ndmp->config($testconf);
-  $testconf->write();
-
-The C<edit_config> method is intended for use with NDMP dumps in
-L<Installcheck::Dumpcache>.  It edits an existing, on-disk configuration that
-was created by the C<config> method to reflect the NDMP port in use by this
-instance:
-
-  Installcheck:Dumpcache::load("ndmp")
-  $ndmp->edit_config();
-
 The C<cleanup> method will clean up any data files, and should be called when a
 test suite finishes.  The C<reset> method resets the changer to its initial
 state, without restarting ndmjob.
@@ -179,15 +141,6 @@ sub config {
     $testconf->remove_param('tapedev');
     $testconf->remove_param('tpchanger');
     $testconf->remove_param('changerfile');
-    $testconf->add_param('tpchanger', '"ndmp_server"');
-    $testconf->add_changer('ndmp_server', [
-	tpchanger => "\"chg-ndmp:127.0.0.1:$port\@$chg\"",
-	property => "\"tape-device\" \"0=ndmp:127.0.0.1:$port\@$drive0\"",
-	property => "append \"tape-device\" \"1=ndmp:127.0.0.1:$port\@$drive1\"",
-	device_property => "\"indirect\" \"FALSE\"",
-	device_property => "\"verbose\" \"YES\"",
-	changerfile => "\"$chg-state\"",
-    ]);
 }
 
 sub edit_config {

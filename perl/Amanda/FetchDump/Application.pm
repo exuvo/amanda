@@ -191,57 +191,7 @@ sub run_directtcp_application {
     my $self = shift;
     my $xfer = shift;
 
-    return if !$self->{'use_directtcp'};
-
-    my $addr = $self->{'xfer_dest'}->get_addrs();
-    my @directtcp_command = $self->{'extract'}->{'restore_argv'};
-    push @directtcp_command, "--data-path", "DIRECTTCP";
-    push @directtcp_command, "--direct-tcp", "$addr->[0]->[0]:$addr->[0]->[1]";
-    debug("Running: ". join(' ', @directtcp_command));
-
-    my ($wtr, $rdr);
-    my $err = Symbol::gensym;
-    my $amndmp_pid = open3($wtr, $rdr, $err, @directtcp_command);
-    $amndmp_pid = $amndmp_pid;
-    my $file_to_close = 2;
-    my $amndmp_stdout_src = Amanda::MainLoop::fd_source($rdr,
-					$G_IO_IN|$G_IO_HUP|$G_IO_ERR);
-    my $amndmp_stderr_src = Amanda::MainLoop::fd_source($err,
-					$G_IO_IN|$G_IO_HUP|$G_IO_ERR);
-
-    $amndmp_stdout_src->set_callback( sub {
-	my $line = <$rdr>;
-	if (!defined $line) {
-	    $file_to_close--;
-	    $amndmp_stdout_src->remove();
-	    if ($file_to_close == 0) {
-		#abort the xfer
-		$xfer->cancel() if $xfer->get_status != $XFER_DONE;
-	    }
-	    return;
-	}
-	chomp $line;
-	debug("amndmp stdout: $line");
-	print "$line\n";
-    });
-
-    $amndmp_stderr_src->set_callback( sub {
-	my $line = <$err>;
-	if (!defined $line) {
-	    $file_to_close--;
-	    $amndmp_stderr_src->remove();
-	    if ($file_to_close == 0) {
-		#abort the xfer
-		$xfer->cancel() if $xfer->get_status != $XFER_DONE;
-	    }
-	    return;
-	}
-	chomp $line;
-	debug("amndmp stderr: $line");
-	print STDERR "$line\n";
-	$self->{'last_is_size'} = 0;
-    });
-
+		return
 }
 
 1;

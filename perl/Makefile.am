@@ -23,7 +23,6 @@ AM_CPPFLAGS =  \
             -I$(top_srcdir)/xfer-src \
             -I$(top_srcdir)/perl/amglue \
             -I$(top_srcdir)/gnulib \
-            -I$(top_srcdir)/ndmp-src \
             $(PERL_INC)
 
 if WANT_SERVER
@@ -139,7 +138,6 @@ libDevice_la_LDFLAGS = $(PERL_EXT_LDFLAGS)
 libDevice_la_LIBADD = amglue/libamglue.la \
 	$(top_builddir)/device-src/libamdevice.la \
 	$(top_builddir)/xfer-src/libamxfer.la \
-	$(top_builddir)/ndmp-src/libndmlib.la \
 	$(top_builddir)/common-src/libamanda.la
 Amanda_DATA += Amanda/Device.pm
 MAINTAINERCLEANFILES += Amanda/Device.c Amanda/Device.pm
@@ -292,9 +290,6 @@ AmandaChanger_DATA = \
 	Amanda/Changer/robot.pm \
 	Amanda/Changer/single.pm
 
-if WANT_NDMP
-AmandaChanger_DATA += Amanda/Changer/ndmp.pm
-endif
 PM_FILES += $(AmandaChanger_DATA)
 endif
 EXTRA_DIST += \
@@ -305,8 +300,7 @@ EXTRA_DIST += \
 	Amanda/Changer/null.pm \
 	Amanda/Changer/rait.pm \
 	Amanda/Changer/robot.pm \
-	Amanda/Changer/single.pm \
-	Amanda/Changer/ndmp.pm
+	Amanda/Changer/single.pm
 
 if WANT_SERVER
 # PACKAGE: Amanda::Status
@@ -467,21 +461,6 @@ libXfer_la_LIBADD = amglue/libamglue.la \
 Amanda_DATA += Amanda/Xfer.pm
 MAINTAINERCLEANFILES += Amanda/Xfer.c Amanda/Xfer.pm
 EXTRA_DIST += Amanda/Xfer.swg Amanda/Xfer.pm Amanda/Xfer.pod
-
-if WANT_NDMP
-# PACKAGE: Amanda::NDMP
-libNDMPdir = $(amperldir)/auto/Amanda/NDMP
-libNDMP_LTLIBRARIES = libNDMP.la
-AM_CPPFLAGS += ${TIRPC_CFLAGS}
-libNDMP_la_SOURCES = Amanda/NDMP.c $(AMGLUE_SWG)
-libNDMP_la_LDFLAGS = $(PERL_EXT_LDFLAGS) ${TIRPC_LDFLAGS}
-libNDMP_la_LIBADD = amglue/libamglue.la \
-	$(top_builddir)/common-src/libamanda.la \
-	$(top_builddir)/ndmp-src/libndmlib.la
-Amanda_DATA += Amanda/NDMP.pm
-MAINTAINERCLEANFILES += Amanda/NDMP.c Amanda/NDMP.pm
-endif
-EXTRA_DIST += Amanda/NDMP.swg Amanda/NDMP.pm Amanda/NDMP.pod
 
 if WANT_SERVER
 # PACKAGE: Amanda::XferServer

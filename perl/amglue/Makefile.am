@@ -17,7 +17,6 @@ AM_CPPFLAGS =  \
             -I$(top_srcdir)/common-src \
             -I$(top_srcdir)/xfer-src \
             -I$(top_srcdir)/gnulib \
-            -I$(top_srcdir)/ndmp-src \
             $(PERL_INC)
 
 amlib_LTLIBRARIES = libamglue.la

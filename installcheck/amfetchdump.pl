@@ -482,55 +482,5 @@ is_deeply([ @results ], [ "tape-count", "tapes-needed", "holding-count",
 
 got_files(6, "..and all restored files are present in testdir");
 
-
-SKIP: {
-    skip "Expect not installed or not built with ndmp and server", 2 unless
-	Amanda::Util::built_with_component("ndmp") and
-	Amanda::Util::built_with_component("server") and
-	$Installcheck::Run::have_expect;
-
-
-    Installcheck::Dumpcache::load("ndmp");
-    my $ndmp = Installcheck::Mock::NdmpServer->new(no_reset => 1);
-    $ndmp->edit_config();
-
-    cleandir();
-
-    $exp = Installcheck::Run::run_expect('amfetchdump', 'TESTCONF', 'localhost');
-    $exp->log_stdout(0);
-
-    @results = ();
-    $exp->expect(60,
-	[ qr{1 (tape|volume)\(s\) needed for restoration}, sub {
-	    push @results, "tape-count";
-	    exp_continue;
-	} ],
-	[ qr{The following (tapes|volumes) are needed: TESTCONF01}, sub {
-	    push @results, "tapes-needed";
-	    exp_continue;
-	} ],
-	[ qr{Reading label 'TESTCONF01' filenum 1}, sub {
-	    push @results, "reading";
-	    exp_continue;
-	} ],
-	[ qr{split dumpfile: date [[:digit:]]+ host localhost disk .*}, sub {
-	    push @results, "restoring";
-	    exp_continue;
-	} ],
-	[ 'Press enter when ready', sub {
-	    push @results, "press-enter";
-	    $exp->send("\n");
-	    exp_continue;
-	}, ],
-	[ 'eof', sub {
-	    push @results, "eof";
-	}, ],
-    );
-    is_deeply([ @results ], [ "tape-count", "tapes-needed", "press-enter", "reading", "restoring", "eof" ],
-	      "ndmp restore follows the correct steps");
-
-    got_files(1, "L ..and restored file is present in testdir");
-}
-
 chdir("$testdir/..");
 rmtree($testdir);
