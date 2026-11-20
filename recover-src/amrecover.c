@@ -87,6 +87,8 @@ proplist_t proplist = NULL;
 static char *errstr = NULL;
 char *authopt;
 int amindexd_alive = 0;
+volatile sig_atomic_t interruptible_cmd = 0;
+volatile sig_atomic_t cmd_interrupted = 0;
 security_handle_t *gsech;
 char *listing_date = NULL;
 
@@ -280,6 +282,15 @@ sigint_handler(
      * buffer flushing is not attempted.
      */
     (void)signum;	/* Quiet unused parameter warning */
+
+    /* the first ^C during a long command only stops that command */
+    if (interruptible_cmd && !cmd_interrupted) {
+	static const char msg[] =
+	    "\nInterrupted; stopping (press Ctrl-C again to quit amrecover)\n";
+	cmd_interrupted = 1;
+	(void)!write(STDERR_FILENO, msg, sizeof(msg) - 1);
+	return;
+    }
 
     if (extract_restore_child_pid != -1)
 	(void)kill(extract_restore_child_pid, SIGKILL);
@@ -528,7 +539,8 @@ main(
     /* set up signal handler */
     act.sa_handler = sigint_handler;
     sigemptyset(&act.sa_mask);
-    act.sa_flags = 0;
+    /* restart interrupted I/O when the handler returns (interruptible_cmd) */
+    act.sa_flags = SA_RESTART;
     if (sigaction(SIGINT, &act, &oact) != 0) {
 	error(_("error setting signal handler: %s"), strerror(errno));
 	/*NOTREACHED*/

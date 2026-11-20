@@ -74,6 +74,12 @@ extern proplist_t proplist;
 extern gboolean translate_mode;
 extern char *listing_date;
 
+/* Ctrl-C during a long command (find, ls-all, version) stops the command */
+extern volatile sig_atomic_t interruptible_cmd;
+extern volatile sig_atomic_t cmd_interrupted;
+extern void begin_interruptible(void);
+extern void end_interruptible(void);
+
 extern void free_dir_item(DIR_ITEM *item);
 
 extern int converse(char *cmd);

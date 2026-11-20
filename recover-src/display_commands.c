@@ -124,13 +124,14 @@ void list_file_history(char* name)
         }
     }
     g_printf("History of file: %s\n", name);
+    begin_interruptible();
     i = strlen(disk_tpath);
     if (i != 1)
         i++;
     ind = 0;
     next_date = g_strdup(list_date[ind]);
     while ((ind < size) && (list_date[ind] != NULL)) {
-        if (!(strcmp(list_date[ind], next_date) > 0))
+        if (!cmd_interrupted && !(strcmp(list_date[ind], next_date) > 0))
         {
 
             clear_dir_list();
@@ -161,6 +162,7 @@ void list_file_history(char* name)
     }
     amfree(list_date);
     amfree(next_date);
+    end_interruptible();
     cmd = g_strconcat("DATE ", listing_date, NULL);
     if (exchange(cmd) == -1)
         exit(1);
@@ -192,9 +194,28 @@ list_all(void)
         return;
     }
     cwd = get_cwd_abs();
+    begin_interruptible();
     list_all_file(mount_point, ".*", 1);
+    end_interruptible();
     set_directory(cwd, 0);
     amfree(cwd);
+}
+
+
+void
+begin_interruptible(void)
+{
+    cmd_interrupted = 0;
+    interruptible_cmd = 1;
+}
+
+void
+end_interruptible(void)
+{
+    interruptible_cmd = 0;
+    if (cmd_interrupted)
+	g_printf(_("Command interrupted.\n"));
+    cmd_interrupted = 0;
 }
 
 
@@ -254,7 +275,7 @@ list_all_file(char *dir, char *name, int re)
         return;
     }
 
-    if (set_directory(dir, 0) != 1)
+    if (cmd_interrupted || set_directory(dir, 0) != 1)
 	return;
 
     subdirs = g_ptr_array_new();
@@ -284,7 +305,8 @@ list_all_file(char *dir, char *name, int re)
 
     /* the dir list is replaced by each set_directory(), so recurse after */
     for (i = 0; i < subdirs->len; i++) {
-	list_all_file(g_ptr_array_index(subdirs, i), name, re);
+	if (!cmd_interrupted)
+	    list_all_file(g_ptr_array_index(subdirs, i), name, re);
 	g_free(g_ptr_array_index(subdirs, i));
     }
     g_ptr_array_free(subdirs, TRUE);
@@ -327,6 +349,7 @@ find_file(char *name, char *dir, int re)
     dir = abs_dir;
 
     name = convert_name(name);
+    begin_interruptible();
     if (re == 1) {
         error = validate_regexp(name);
         if (error == NULL) {
@@ -343,6 +366,7 @@ find_file(char *name, char *dir, int re)
 
         list_all_file(dir, name, re);
     }
+    end_interruptible();
     amfree(regex);
     amfree(name);
     amfree(abs_dir);
