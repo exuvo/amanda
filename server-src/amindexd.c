@@ -103,6 +103,10 @@ static char *uncompress_file(char *, char *, char *, int,
 			     char *, GPtrArray **,
 			     gboolean need_uncompress, gboolean need_sort);
 static int process_ls_dump(char *, DUMP_ITEM *, int, GPtrArray **);
+static char *read_index_line(FILE *fp, char **buf, size_t *bufsize);
+static gboolean index_is_c_sorted(const char *filename, FILE *fp);
+static void index_seek_prefix(FILE *fp, const char *prefix);
+static void index_mark_c_sorted(const char *filename);
 
 static size_t reply_buffer_size = 1;
 static char *reply_buffer = NULL;
@@ -224,6 +228,162 @@ compress_files(
     return compress;
 }
 
+/* Read one line of an index file (any length), without the trailing newline.
+ * Returns *buf, or NULL at EOF. */
+static char *
+read_index_line(
+    FILE   *fp,
+    char  **buf,
+    size_t *bufsize)
+{
+    ssize_t len = getline(buf, bufsize, fp);
+
+    if (len < 0)
+	return NULL;
+    if (len > 0 && (*buf)[len-1] == '\n')
+	(*buf)[len-1] = '\0';
+    return *buf;
+}
+
+/*
+ * Return TRUE if the index file is sorted in byte order (LC_ALL=C), which is
+ * what index_seek_prefix() needs.  Files sorted by amindexd always are, but
+ * files sorted by amtrmidx or an older version may have used another locale.
+ * The result is cached per file (keyed on name, inode, size and mtime), so a
+ * file is only checked once per session.  fp is rewound before returning.
+ */
+typedef struct {
+    ino_t    ino;
+    off_t    size;
+    time_t   mtime;
+    gboolean sorted;
+} index_sort_state;
+
+static GHashTable *index_sort_cache = NULL;
+
+static gboolean
+index_is_c_sorted(
+    const char *filename,
+    FILE       *fp)
+{
+    struct stat       st;
+    index_sort_state *state;
+    char             *line = NULL, *prev = NULL;
+    size_t            linesize = 0;
+    gboolean          sorted = TRUE;
+
+    if (fstat(fileno(fp), &st) == -1)
+	return FALSE;
+
+    if (!index_sort_cache)
+	index_sort_cache = g_hash_table_new_full(g_str_hash, g_str_equal,
+						 g_free, g_free);
+    state = g_hash_table_lookup(index_sort_cache, filename);
+    if (state && state->ino == st.st_ino && state->size == st.st_size &&
+	state->mtime == st.st_mtime)
+	return state->sorted;
+
+    while (read_index_line(fp, &line, &linesize) != NULL) {
+	if (prev && strcmp(prev, line) > 0) {
+	    sorted = FALSE;
+	    break;
+	}
+	g_free(prev);
+	prev = g_strdup(line);
+    }
+    g_free(prev);
+    g_free(line);
+    rewind(fp);
+
+    if (!sorted)
+	dbprintf("index %s is not sorted in byte order; using linear scans\n",
+		 filename);
+
+    state = g_new0(index_sort_state, 1);
+    state->ino = st.st_ino;
+    state->size = st.st_size;
+    state->mtime = st.st_mtime;
+    state->sorted = sorted;
+    g_hash_table_insert(index_sort_cache, g_strdup(filename), state);
+    return sorted;
+}
+
+/* record that a file amindexd sorted itself (LC_ALL=C) is byte-sorted */
+static void
+index_mark_c_sorted(
+    const char *filename)
+{
+    struct stat       st;
+    index_sort_state *state;
+
+    if (stat(filename, &st) == -1)
+	return;
+    if (!index_sort_cache)
+	index_sort_cache = g_hash_table_new_full(g_str_hash, g_str_equal,
+						 g_free, g_free);
+    state = g_new0(index_sort_state, 1);
+    state->ino = st.st_ino;
+    state->size = st.st_size;
+    state->mtime = st.st_mtime;
+    state->sorted = TRUE;
+    g_hash_table_insert(index_sort_cache, g_strdup(filename), state);
+}
+
+/* position fp at the first line starting at or after byte offset pos */
+static void
+index_seek_line_start(
+    FILE  *fp,
+    off_t  pos)
+{
+    int c;
+
+    if (pos <= 0) {
+	fseeko(fp, 0, SEEK_SET);
+	return;
+    }
+    fseeko(fp, pos - 1, SEEK_SET);
+    while ((c = getc(fp)) != EOF && c != '\n')
+	;
+}
+
+/*
+ * Binary-search a byte-order sorted index file and leave fp positioned at or
+ * just before the first line >= prefix, so that all lines starting with
+ * prefix follow as one contiguous block.
+ */
+static void
+index_seek_prefix(
+    FILE       *fp,
+    const char *prefix)
+{
+    struct stat st;
+    off_t       lo = 0, hi, mid, p;
+    char       *line = NULL;
+    size_t      linesize = 0;
+
+    if (fstat(fileno(fp), &st) == -1) {
+	rewind(fp);
+	return;
+    }
+    hi = st.st_size;
+
+    /* invariant: the line at lo is < prefix (or lo == 0), and the first line
+     * starting at or after hi is >= prefix (or EOF) */
+    while (hi - lo > 1) {
+	mid = lo + (hi - lo) / 2;
+	index_seek_line_start(fp, mid);
+	p = ftello(fp);
+	if (read_index_line(fp, &line, &linesize) == NULL ||
+	    strcmp(line, prefix) >= 0) {
+	    hi = mid;
+	} else {
+	    lo = p;
+	}
+    }
+    g_free(line);
+    fseeko(fp, lo, SEEK_SET);
+}
+
 /* find all matching entries in a dump listing */
 /* return -1 if error */
 static int
@@ -233,15 +393,17 @@ process_ls_dump(
     int		recursive,
     GPtrArray **emsg)
 {
-    char line[STR_SIZE], old_line[STR_SIZE];
+    char *line = NULL;
+    size_t linesize = 0;
+    char *old_line = NULL;
     char *filename = NULL;
     char *dir_slash = NULL;
     FILE *fp;
     char *s;
     int ch;
     size_t len_dir_slash;
+    gboolean sorted;
 
-    old_line[0] = '\0';
     if (g_str_equal(dir, "/")) {
 	dir_slash = g_strdup(dir);
     } else {
@@ -265,29 +427,37 @@ process_ls_dump(
 
     len_dir_slash=strlen(dir_slash);
 
-    while (fgets(line, STR_SIZE, fp) != NULL) {
-	if (line[0] != '\0') {
-	    if(strlen(line) > 0 && line[strlen(line)-1] == '\n')
-		line[strlen(line)-1] = '\0';
-	    if (g_str_has_prefix(line, dir_slash )) {
-		if(!recursive) {
-		    s = line + len_dir_slash;
-		    ch = *s++;
-		    while(ch && ch != '/')
-			ch = *s++;/* find end of the file name */
-		    if(ch == '/') {
-			s++;
-		    }
-		    s[-1] = '\0';
+    /* in a byte-sorted index all entries below dir are one contiguous block */
+    sorted = index_is_c_sorted(filename, fp);
+    if (sorted)
+	index_seek_prefix(fp, dir_slash);
+
+    while (read_index_line(fp, &line, &linesize) != NULL) {
+	if (line[0] == '\0')
+	    continue;
+	if (g_str_has_prefix(line, dir_slash)) {
+	    if(!recursive) {
+		s = line + len_dir_slash;
+		ch = *s++;
+		while(ch && ch != '/')
+		    ch = *s++;/* find end of the file name */
+		if(ch == '/') {
+		    s++;
 		}
-		if(!g_str_equal(line, old_line)) {
-		    add_dir_list_item(dump_item, line);
-		    strcpy(old_line, line);
-		}
+		s[-1] = '\0';
 	    }
+	    if (old_line == NULL || !g_str_equal(line, old_line)) {
+		add_dir_list_item(dump_item, line);
+		g_free(old_line);
+		old_line = g_strdup(line);
+	    }
+	} else if (sorted && strcmp(line, dir_slash) > 0) {
+	    break;			/* past the block for dir */
 	}
     }
     afclose(fp);
+    g_free(line);
+    g_free(old_line);
     amfree(filename);
     amfree(dir_slash);
     return 0;
@@ -800,7 +970,9 @@ is_dir_valid_opaque(
     char *dir)
 {
     DUMP_ITEM *item;
-    char line[STR_SIZE];
+    char *line = NULL;
+    size_t linesize = 0;
+    gboolean sorted;
     FILE *fp;
     int last_level;
     char *ldir = NULL;
@@ -863,16 +1035,20 @@ is_dir_valid_opaque(
 	    amfree(ldir);
 	    return -1;
 	}
-	while (fgets(line, STR_SIZE, fp) != NULL) {
+	sorted = index_is_c_sorted(filename, fp);
+	if (sorted)
+	    index_seek_prefix(fp, ldir);
+	while (read_index_line(fp, &line, &linesize) != NULL) {
 	    if (line[0] == '\0')
 		continue;
-	    if(strlen(line) > 0 && line[strlen(line)-1] == '\n')
-		line[strlen(line)-1] = '\0';
 	    if (strncmp(line, ldir, ldir_len) != 0) {
+		if (sorted && strcmp(line, ldir) > 0)
+		    break;			/* past where it would be */
 		continue;			/* not found yet */
 	    }
 	    amfree(filename);
 	    amfree(ldir);
+	    g_free(line);
 	    afclose(fp);
 	    return 0;
 	}
@@ -885,6 +1061,7 @@ is_dir_valid_opaque(
 	} while ((item != NULL) && (item->level >= last_level));
     } while (item != NULL);
 
+    g_free(line);
     amfree(filename);
     amfree(ldir);
     reply(500, _("\"%s\" is an invalid directory"), dir);
@@ -901,6 +1078,7 @@ opaque_ls(
     int level, last_level;
     GPtrArray *emsg = NULL;
     am_feature_e marshall_feature;
+    gboolean level_used[DUMP_LEVELS];
 
     if (recursive) {
         marshall_feature = fe_amindexd_marshall_in_ORLD;
@@ -965,7 +1143,15 @@ opaque_ls(
 
     /* return the information to the caller */
     lreply(200, _(" Opaque list of %s"), dir);
+    /* output is grouped by level; only walk the list for levels present */
+    memset(level_used, 0, sizeof(level_used));
+    for (dir_item = get_dir_list(); dir_item != NULL; dir_item = dir_item->next) {
+	if (dir_item->dump->level >= 0 && dir_item->dump->level < DUMP_LEVELS)
+	    level_used[dir_item->dump->level] = TRUE;
+    }
     for(level=0; level < DUMP_LEVELS; level++) {
+	if (!level_used[level])
+	    continue;
 	for (dir_item = get_dir_list(); dir_item != NULL; 
 	     dir_item = dir_item->next) {
 
@@ -1961,7 +2147,7 @@ get_index_name(
 
 process_dump:
     amfree(lower_hostname);
-    return uncompress_file(hostname, diskname, timestamps, level,
+    return uncompress_file(dump_hostname, diskname, timestamps, level,
 			   fn, emsg, need_uncompress, need_sort);
 }
 
@@ -1976,22 +2162,21 @@ uncompress_file(
     gboolean    need_uncompress,
     gboolean    need_sort)
 {
-    char *cmd = NULL;
     char *new_filename = NULL;
+    char *tmp_filename = NULL;
     struct stat stat_filename;
     int result;
-    int pipe_from_gzip;
-    int pipe_to_sort;
+    int pipe_from_gzip = -1;
+    int pipe_to_sort = -1;
     int indexfd;
     int nullfd;
-    int uncompress_errfd;
-    int sort_errfd;
+    int uncompress_errfd = -1;
+    int sort_errfd = -1;
     char line[STR_SIZE];
-    FILE *pipe_stream;
+    FILE *pipe_stream = NULL;
     pid_t pid_gzip = 0;
     pid_t pid_sort = 0;
     pid_t pid_index = 0;
-    int        status;
     char      *msg;
     gpointer  *p;
     gpointer  *p_last;
@@ -1999,10 +2184,14 @@ uncompress_file(
     GPtrArray *sort_err = NULL;
     FILE      *uncompress_err_stream;
     FILE      *sort_err_stream;
+    gboolean   ok = TRUE;
 
-    new_filename = getindex_unsorted_fname(hostname, diskname, timestamps, level);
+    /*
+     * The result is always a byte-sorted, uncompressed index, so it is
+     * written under the -sorted name, where get_index_name() looks first.
+     */
+    new_filename = getindex_sorted_fname(hostname, diskname, timestamps, level);
 
-    /* uncompress the file */
     result = stat(filename, &stat_filename);
     if (result == -1) {
 	msg = g_strdup_printf(_("Source index file '%s' is inaccessible: %s"),
@@ -2010,22 +2199,23 @@ uncompress_file(
 	dbprintf("%s\n", msg);
 	g_ptr_array_add(*emsg, msg);
 	amfree(filename);
+	amfree(new_filename);
 	return NULL;
     } else if(!S_ISREG((stat_filename.st_mode))) {
-	    msg = g_strdup_printf(_("\"%s\" is not a regular file"), filename);
-	    dbprintf("%s\n", msg);
-	    g_ptr_array_add(*emsg, msg);
-	    errno = -1;
-	    amfree(filename);
-	    amfree(cmd);
-	    return NULL;
+	msg = g_strdup_printf(_("\"%s\" is not a regular file"), filename);
+	dbprintf("%s\n", msg);
+	g_ptr_array_add(*emsg, msg);
+	errno = -1;
+	amfree(filename);
+	amfree(new_filename);
+	return NULL;
     }
 
-    if (g_str_equal(filename, new_filename)) {
-	return new_filename;
-    }
-    if (!need_uncompress && !need_sort) {
-	return new_filename;
+    if (g_str_equal(filename, new_filename) ||
+	(!need_uncompress && !need_sort)) {
+	/* already a usable sorted, uncompressed index */
+	amfree(new_filename);
+	return filename;
     }
 
 #ifdef UNCOMPRESS_OPT
@@ -2034,26 +2224,28 @@ uncompress_file(
 #  define PARAM_UNCOMPRESS_OPT skip_argument
 #endif
 
-    indexfd = open(new_filename, O_WRONLY|O_CREAT, 0600);
+    /* write to a temporary name, so that a concurrent session never sees a
+     * partially written -sorted file */
+    tmp_filename = g_strdup_printf("%s.tmp%ld", new_filename, (long)getpid());
+    indexfd = open(tmp_filename, O_WRONLY|O_CREAT|O_TRUNC, 0600);
     if (indexfd == -1) {
 	msg = g_strdup_printf(_("Can't open '%s' for writing: %s"),
-			      filename, strerror(errno));
+			      tmp_filename, strerror(errno));
 	dbprintf("%s\n", msg);
 	g_ptr_array_add(*emsg, msg);
 	amfree(filename);
+	amfree(new_filename);
+	amfree(tmp_filename);
 	return NULL;
     }
+
+    /* byte order, which is what the binary search in index_seek_prefix needs */
+    putenv(g_strdup("LC_ALL=C"));
 
     if (need_uncompress) {
 	int  pipedef;
 	int *out_fd;
 
-	/* just use our stderr directly for the pipe's stderr; in
-	 * main() we send stderr to the debug file, or /dev/null
-	 * if debugging is disabled */
-
-	/* start the uncompress process */
-	putenv(g_strdup("LC_ALL=C"));
 	nullfd = open("/dev/null", O_RDONLY);
 
 	if (need_sort) {
@@ -2076,9 +2268,8 @@ uncompress_file(
 				      strerror(errno));
 		dbprintf("%s\n", msg);
 		g_ptr_array_add(*emsg, msg);
-		amfree(filename);
 		aclose(indexfd);
-		return NULL;
+		goto fail;
 	    }
 	} else {
 	    aclose(indexfd);
@@ -2090,16 +2281,13 @@ uncompress_file(
 			     filename, strerror(errno));
 	    dbprintf("%s\n", msg);
 	    g_ptr_array_add(*emsg, msg);
-	    amfree(filename);
 	    aclose(indexfd);
-	    return NULL;
+	    goto fail;
 	}
     }
 
     if (need_sort) {
 	/* start the sort process */
-	putenv(g_strdup("LC_ALL=C"));
-
 	if (getconf_seen(CNF_TMPDIR)) {
 	    gchar *tmpdir = getconf_str(CNF_TMPDIR);
 	    pid_sort = pipespawn(SORT_PATH, STDIN_PIPE|STDERR_PIPE, 0,
@@ -2122,19 +2310,22 @@ uncompress_file(
 			strerror(errno));
 	    dbprintf("%s\n", msg);
 	    g_ptr_array_add(*emsg, msg);
-	    unlink(filename);
-	    amfree(filename);
+	    ok = FALSE;
 	    break;
 	default: break;
-	case 0:
-	    while (fgets(line, STR_SIZE, pipe_stream) != NULL) {
-		if (line[0] != '\0') {
-		    if (strchr(line,'/')) {
-			full_write(pipe_to_sort,line,strlen(line));
-		    }
+	case 0: {
+	    char   *buf = NULL;
+	    size_t  bufsize = 0;
+	    ssize_t len;
+
+	    /* whole lines of any length; keep only path entries */
+	    while ((len = getline(&buf, &bufsize, pipe_stream)) > 0) {
+		if (memchr(buf, '/', len)) {
+		    full_write(pipe_to_sort, buf, len);
 		}
 	    }
 	    exit(0);
+	}
 	}
 
 	fclose(pipe_stream);
@@ -2177,12 +2368,10 @@ uncompress_file(
 	}
     }
 
+    /* get_pid_status() returns 1 on success, 0 on failure */
     if (need_uncompress) {
-	status = get_pid_status(pid_gzip, UNCOMPRESS_PATH, emsg);
-	if (status == 0 && filename) {
-	    unlink(filename);
-	    amfree(filename);
-	}
+	if (!get_pid_status(pid_gzip, UNCOMPRESS_PATH, emsg))
+	    ok = FALSE;
 	if (uncompress_err->len > 0) {
 	    p_last = uncompress_err->pdata + uncompress_err->len;
 	    for (p = uncompress_err->pdata; p < p_last ;p++) {
@@ -2193,17 +2382,10 @@ uncompress_file(
     }
 
     if (need_sort) {
-	status = get_pid_status(pid_index, "index", emsg);
-	if (status == 0 && filename) {
-	    unlink(filename);
-	    amfree(filename);
-	}
-
-	status = get_pid_status(pid_sort, SORT_PATH, emsg);
-	if (status == 0 && filename) {
-	    unlink(filename);
-	    amfree(filename);
-	}
+	if (pid_index > 0 && !get_pid_status(pid_index, "index", emsg))
+	    ok = FALSE;
+	if (!get_pid_status(pid_sort, SORT_PATH, emsg))
+	    ok = FALSE;
 	if (sort_err->len > 0) {
 	    p_last = sort_err->pdata + sort_err->len;
 	    for (p = sort_err->pdata; p < p_last ;p++) {
@@ -2213,23 +2395,55 @@ uncompress_file(
 	g_ptr_array_free(sort_err, TRUE);
     }
 
-    if (need_sort && new_filename && getconf_boolean(CNF_COMPRESS_INDEX)) {
-	/* add at beginning */
-	REMOVE_ITEM *compress_file;
-	compress_file = (REMOVE_ITEM *)g_malloc(sizeof(REMOVE_ITEM));
-	compress_file->filename = g_strdup(new_filename);
-	compress_file->next = uncompress_remove;
-	compress_sorted_files = compress_file;
-    } else if (need_uncompress && new_filename && !getconf_boolean(CNF_COMPRESS_INDEX)) {
-	/* add at beginning */
+    if (!ok)
+	goto fail;
+
+    if (rename(tmp_filename, new_filename) == -1) {
+	msg = g_strdup_printf(_("Can't rename '%s' to '%s': %s"),
+			      tmp_filename, new_filename, strerror(errno));
+	dbprintf("%s\n", msg);
+	g_ptr_array_add(*emsg, msg);
+	goto fail;
+    }
+    amfree(tmp_filename);
+
+    if (need_sort) {
+	index_mark_c_sorted(new_filename);	/* sorted by us with LC_ALL=C */
+	/*
+	 * The sorted copy replaces the unsorted source, so the sort is only
+	 * ever done once per dump.  With compress-index it is compressed to
+	 * -sorted.gz when this session ends, and later sessions only need to
+	 * uncompress it.
+	 */
+	unlink(filename);
+	if (getconf_boolean(CNF_COMPRESS_INDEX)) {
+	    REMOVE_ITEM *compress_file;
+	    compress_file = g_new(REMOVE_ITEM, 1);
+	    compress_file->filename = g_strdup(new_filename);
+	    compress_file->next = compress_sorted_files;
+	    compress_sorted_files = compress_file;
+	}
+    } else {
+	/*
+	 * Temporary uncompressed copy of a -sorted.gz index.  The .gz is
+	 * kept and the copy is removed when this session ends.
+	 */
 	REMOVE_ITEM *remove_file;
-	remove_file = (REMOVE_ITEM *)g_malloc(sizeof(REMOVE_ITEM));
+	remove_file = g_new(REMOVE_ITEM, 1);
 	remove_file->filename = g_strdup(new_filename);
 	remove_file->next = uncompress_remove;
 	uncompress_remove = remove_file;
     }
 
-    amfree(cmd);
+    amfree(filename);
     return new_filename;
+
+fail:
+    /* never touch the source index on failure */
+    unlink(tmp_filename);
+    amfree(tmp_filename);
+    amfree(filename);
+    amfree(new_filename);
+    return NULL;
 }
 

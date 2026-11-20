@@ -809,6 +809,8 @@ run_sort(
     }
 
 
+    /* byte order, so amindexd can binary-search the sorted index */
+    g_setenv("LC_ALL", "C", TRUE);
     pid = pipespawn(SORT_PATH, create_pipe, 0,
 		    &in_fd, &out_fd, fd_err,
 		    SORT_PATH, "-T", tmpdir, NULL);

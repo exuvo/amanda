@@ -259,6 +259,8 @@ sub get_index_handle() {
 				$params{'disk'},
 				$params{'datestamp'},
 				0+$params{'level'});
+    # byte order, so amindexd can binary-search the sorted index
+    local $ENV{'LC_ALL'} = 'C';
     $pid_sort = open2(undef, "<&AAAA", $Amanda::Constants::SORT_PATH,
 				"-", "-o", $new_filename,
 				"-T", getconf($CNF_TMPDIR));
