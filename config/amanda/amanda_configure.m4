@@ -115,8 +115,6 @@ AMANDA_PROG_PCAT
 AMANDA_PROG_PERL
 AMANDA_PROG_SWIG
 AMANDA_PS_ARGUMENT
-AMANDA_PROG_RPCGEN
-AMANDA_PROG_NC
 
 dnl -------------------------------------------------------------------------
 
@@ -242,100 +240,24 @@ AC_SEARCH_LIBS([shm_open], [rt], [], [
 # It's not clear that any existing system implements but does not
 # declare common functions such as these.
 #
-ICE_CHECK_DECL(accept,sys/types.h sys/socket.h)
 AC_FUNC_ALLOCA
 AC_CHECK_FUNCS(atexit)
-ICE_CHECK_DECL(atof,stdlib.h)
-ICE_CHECK_DECL(atol,stdlib.h)
-ICE_CHECK_DECL(atoll,stdlib.h)
-ICE_CHECK_DECL(strtol,stdlib.h)
-ICE_CHECK_DECL(strtoll,stdlib.h)
 AC_CHECK_FUNCS(basename)
-ICE_CHECK_DECL(bind,sys/types.h sys/socket.h)
-ICE_CHECK_DECL(bcopy,string.h strings.h stdlib.h)
-ICE_CHECK_DECL(bzero,string.h strings.h stdlib.h)
 AC_FUNC_CLOSEDIR_VOID
-ICE_CHECK_DECL(closelog,syslog.h)
-ICE_CHECK_DECL(connect,sys/types.h sys/socket.h)
-ICE_CHECK_DECL(fclose,stdio.h)
-ICE_CHECK_DECL(fflush,stdio.h)
-ICE_CHECK_DECL(fprintf,stdio.h)
-ICE_CHECK_DECL(fputc,stdio.h)
-ICE_CHECK_DECL(fputs,stdio.h)
-ICE_CHECK_DECL(fread,stdio.h stdlib.h)
-ICE_CHECK_DECL(fseek,stdio.h)
-ICE_CHECK_DECL(fwrite,stdio.h stdlib.h)
 AC_CHECK_FUNCS(getgrgid_r)
 AC_CHECK_FUNCS(getpwuid_r)
 AC_CHECK_FUNCS(realpath)
-ICE_CHECK_DECL(gethostname,unistd.h)
-ICE_CHECK_DECL(getopt,stdlib.h unistd.h libc.h)
-ICE_CHECK_DECL(getpeername,sys/types.h sys/socket.h)
 AC_CHECK_FUNC(getpgrp)
 AC_FUNC_GETPGRP
-ICE_CHECK_DECL(getsockname,sys/types.h sys/socket.h)
-ICE_CHECK_DECL(getsockopt,sys/types.h sys/socket.h)
-ICE_CHECK_DECL(initgroups,grp.h sys/types.h unistd.h libc.h)
-ICE_CHECK_DECL(ioctl,sys/ioctl.h unistd.h libc.h)
-ICE_CHECK_DECL(isnormal,math.h)
-ICE_CHECK_DECL(listen,sys/types.h sys/socket.h)
-ICE_CHECK_DECL(lstat,sys/types.h sys/stat.h)
-ICE_CHECK_DECL(malloc,stdlib.h)
-ICE_CHECK_DECL(memmove,string.h strings.h)
-ICE_CHECK_DECL(memset,string.h strings.h)
-ICE_CHECK_DECL(mkstemp,stdlib.h)
-ICE_CHECK_DECL(mktemp,stdlib.h)
-ICE_CHECK_DECL(mktime,time.h sys/time.h)
 AC_CHECK_FUNCS(on_exit)
-ICE_CHECK_DECL(openlog,syslog.h)
-ICE_CHECK_DECL(pclose,stdio.h)
-ICE_CHECK_DECL(perror,stdio.h)
-ICE_CHECK_DECL(printf,stdio.h)
 AC_CHECK_FUNCS(putenv)
-ICE_CHECK_DECL(puts,stdio.h)
-ICE_CHECK_DECL(realloc,stdlib.h)
-ICE_CHECK_DECL(recvfrom,sys/types.h sys/socket.h)
-ICE_CHECK_DECL(remove,stdio.h)
-ICE_CHECK_DECL(rename,stdio.h)
-ICE_CHECK_DECL(rewind,stdio.h)
-ICE_CHECK_DECL(ruserok,netdb.h sys/socket.h libc.h unistd.h)
-ICE_CHECK_DECL(select,sys/types.h sys/socket.h sys/select.h time.h sys/time.h)
 AMANDA_FUNC_SELECT_ARG_TYPE
-ICE_CHECK_DECL(sendto,sys/types.h sys/socket.h)
-ICE_CHECK_DECL(setegid,unistd.h)
-ICE_CHECK_DECL(seteuid,unistd.h)
-ICE_CHECK_DECL(setresgid,unistd.h)
-ICE_CHECK_DECL(setresuid,unistd.h)
-ICE_CHECK_DECL(snprintf,stdio.h)
-ICE_CHECK_DECL(vsnprintf,stdio.h)
 AMANDA_FUNC_SETPGID
 AC_CHECK_FUNC(setpgrp,[AC_FUNC_SETPGRP])
-ICE_CHECK_DECL(setpgrp,sys/types.h unistd.h libc.h)
-ICE_CHECK_DECL(setsockopt,sys/types.h sys/socket.h)
 AC_CHECK_FUNCS(sigaction sigemptyset sigvec)
-ICE_CHECK_DECL(socket,sys/types.h sys/socket.h)
-ICE_CHECK_DECL(socketpair,sys/types.h sys/socket.h)
-ICE_CHECK_DECL(sscanf,stdio.h)
-ICE_CHECK_DECL(strerror,string.h strings.h)
 AC_FUNC_STRFTIME
-ICE_CHECK_DECL(strftime,time.h sys/time.h)
-ICE_CHECK_DECL(strncasecmp,string.h strings.h)
-ICE_CHECK_DECL(syslog,syslog.h)
-ICE_CHECK_DECL(system,stdlib.h)
-ICE_CHECK_DECL(time,time.h sys/time.h)
-ICE_CHECK_DECL(tolower,ctype.h)
-ICE_CHECK_DECL(toupper,ctype.h)
-ICE_CHECK_DECL(ungetc,stdio.h)
 AC_CHECK_FUNCS(unsetenv)
-ICE_CHECK_DECL(vfprintf,stdio.h stdlib.h)
-ICE_CHECK_DECL(vprintf,stdio.h stdlib.h)
 AC_CHECK_FUNC(wait4)
-ICE_CHECK_DECL(writev, unistd.h sys/uio.h)
-ICE_CHECK_DECL(strcasecmp,string.h strings.h)
-ICE_CHECK_DECL(euidaccess,unistd.h)
-ICE_CHECK_DECL(eaccess,unistd.h)
-ICE_CHECK_DECL(clock_gettime,time.h)
-AX_FUNC_WHICH_GETSERVBYNAME_R
 AC_CHECK_FUNCS(sem_timedwait)
 
 #

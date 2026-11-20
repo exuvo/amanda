@@ -165,40 +165,6 @@ AC_DEFUN([AMANDA_PROG_LPR],
                 [A lpr program])
 ])
 
-# SYNOPSIS
-#
-#   AMANDA_PROG_GNUPLOT
-#
-# OVERVIEW
-#
-#   Search for a 'gnuplot' binary, placing the result in the precious 
-#   variable GNUPLOT.  Also accepts --with-gnuplot to indicate the location
-#   of the binary.
-#
-AC_DEFUN([AMANDA_PROG_GNUPLOT],
-[
-    AC_REQUIRE([AMANDA_INIT_PROGS])
-
-    AC_ARG_WITH(gnuplot,
-    AS_HELP_STRING([--with-gnuplot=PATH],
-		   [use gnuplot executable at PATH in amplot]),
-	[
-	    case "$withval" in
-		y | ye | yes) : ;;
-		n | no) GNUPLOT=no ;;
-		*) GNUPLOT="$withval" ;;
-	    esac
-	])
-    if test "x$GNUPLOT" = "xno"; then
-	GNUPLOT=
-    else
-	AC_PATH_PROG(GNUPLOT,gnuplot,,$LOCSYSPATH)
-    fi
-
-    AC_ARG_VAR(GNUPLOT, [Location of the 'gnuplot' binary])
-    AC_SUBST(GNUPLOT)
-])
-
 ## simple macros needing no description; some add AC_DEFINE_UNQUOTED
 
 AC_DEFUN([AMANDA_PROG_GREP],
@@ -389,12 +355,6 @@ AC_DEFUN([AMANDA_PROG_GETTEXT],
     AC_PATH_PROG(GETTEXT,gettext,,$LOCSYSPATH)
 ])
 
-AC_DEFUN([AMANDA_PROG_RPCGEN],
-[
-    AC_REQUIRE([AMANDA_INIT_PROGS])
-    AC_PATH_PROG(RPCGEN,rpcgen,,$LOCSYSPATH)
-])
-
 AC_DEFUN([AMANDA_PROG_LEX],
 [
     AC_REQUIRE([AM_PROG_LEX])
@@ -410,13 +370,6 @@ AC_DEFUN([AMANDA_PROG_LEX],
 	fi
 	rm conftest.out
     fi
-])
-
-AC_DEFUN([AMANDA_PROG_NC],
-[
-    AC_PATH_PROG(NC,nc,,$LOCSYSPATH)
-    AC_PATH_PROG(NC6,nc6,,$LOCSYSPATH)
-    AC_PATH_PROG(NETCAT,netcat,,$LOCSYSPATH)
 ])
 
 AC_DEFUN([AMANDA_PROG_REALPATH],
