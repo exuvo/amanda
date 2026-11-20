@@ -213,6 +213,7 @@ void
 end_interruptible(void)
 {
     interruptible_cmd = 0;
+    quit_armed = 0;	/* a ^C that stopped the command does not count */
     if (cmd_interrupted)
 	g_printf(_("Command interrupted.\n"));
     cmd_interrupted = 0;

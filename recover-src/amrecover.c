@@ -89,6 +89,12 @@ char *authopt;
 int amindexd_alive = 0;
 volatile sig_atomic_t interruptible_cmd = 0;
 volatile sig_atomic_t cmd_interrupted = 0;
+volatile sig_atomic_t quit_armed = 0;
+
+/* a second ^C within this many seconds of the first quits */
+#define QUIT_CONFIRM_SECONDS 2
+static struct timespec quit_armed_at;
+static volatile sig_atomic_t quit_msg_shown = 0;
 security_handle_t *gsech;
 char *listing_date = NULL;
 
@@ -268,6 +274,20 @@ exchange(
 }
 
 
+#if defined(HAVE_LIBREADLINE) && defined(RL_READLINE_VERSION) && RL_READLINE_VERSION >= 0x0603
+/* redraw the prompt after the "press Ctrl-C again" message */
+static int
+sigint_redisplay(void)
+{
+    if (quit_msg_shown) {
+	quit_msg_shown = 0;
+	rl_on_new_line();
+	rl_redisplay();
+    }
+    return 0;
+}
+#endif
+
 /* basic interrupt handler for when user presses ^C */
 /* Bale out, letting server know before doing so */
 void
@@ -281,6 +301,8 @@ sigint_handler(
      * routines.  Also, use _exit() instead of exit() to make sure stdio
      * buffer flushing is not attempted.
      */
+    struct timespec now;
+
     (void)signum;	/* Quiet unused parameter warning */
 
     /* the first ^C during a long command only stops that command */
@@ -290,6 +312,25 @@ sigint_handler(
 	cmd_interrupted = 1;
 	(void)!write(STDERR_FILENO, msg, sizeof(msg) - 1);
 	return;
+    }
+
+    /*
+     * Otherwise it takes two ^C in a row to quit, so a ^C meant for a
+     * command that just finished does not end the session.  A second ^C
+     * while an interrupted command is still stopping quits at once.
+     */
+    if (!interruptible_cmd) {
+	clock_gettime(CLOCK_MONOTONIC, &now);	/* async-signal-safe */
+	if (!quit_armed ||
+	    now.tv_sec - quit_armed_at.tv_sec > QUIT_CONFIRM_SECONDS) {
+	    static const char msg[] =
+		"\nPress Ctrl-C again to quit amrecover\n";
+	    quit_armed_at = now;
+	    quit_armed = 1;
+	    quit_msg_shown = 1;
+	    (void)!write(STDERR_FILENO, msg, sizeof(msg) - 1);
+	    return;
+	}
     }
 
     if (extract_restore_child_pid != -1)
@@ -643,6 +684,10 @@ main(
 	    g_printf(_("Use the sethost command to choose a host to recover\n"));
 
     }
+
+#if defined(HAVE_LIBREADLINE) && defined(RL_READLINE_VERSION) && RL_READLINE_VERSION >= 0x0603
+    rl_signal_event_hook = sigint_redisplay;
+#endif
 
     quit_prog = 0;
     do {

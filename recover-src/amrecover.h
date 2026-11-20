@@ -77,6 +77,7 @@ extern char *listing_date;
 /* Ctrl-C during a long command (find, ls-all, version) stops the command */
 extern volatile sig_atomic_t interruptible_cmd;
 extern volatile sig_atomic_t cmd_interrupted;
+extern volatile sig_atomic_t quit_armed;
 extern void begin_interruptible(void);
 extern void end_interruptible(void);
 
