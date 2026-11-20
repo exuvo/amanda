@@ -402,6 +402,14 @@ runssh(
 	return (0);
     }
 
+    /*
+     * Ignore SIGINT: the child shares the terminal's process group, so a
+     * ^C meant for the parent (e.g. to stop an amrecover command) would
+     * otherwise kill the connection.  The child still exits when the
+     * parent closes the pipes.
+     */
+    signal(SIGINT, SIG_IGN);
+
     /* drop root privs for good */
     set_root_privs(-1);
 

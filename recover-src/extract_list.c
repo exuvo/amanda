@@ -2437,6 +2437,7 @@ writer_intermediary(
 
     if (ctl_data.pid != -1) {
 	waitpid(ctl_data.pid, &extractor_status, 0);
+	extract_restore_child_pid = -1;
 	if(WEXITSTATUS(extractor_status) != 0){
 	    int ret = WEXITSTATUS(extractor_status);
             if(ret == 255) ret = -1;
@@ -3476,6 +3477,19 @@ static void
 start_processing_data(
     ctl_data_t *ctl_data)
 {
+    struct sigaction sa_ign, sa_old;
+
+    /*
+     * The restore processes (decrypt, uncompress, extract) share the
+     * terminal's process group; start them with SIGINT ignored so that a
+     * single ^C does not abort the restore.  amrecover's own handler kills
+     * the extractor on the second ^C.
+     */
+    memset(&sa_ign, 0, sizeof(sa_ign));
+    sa_ign.sa_handler = SIG_IGN;
+    sigemptyset(&sa_ign.sa_mask);
+    sigaction(SIGINT, &sa_ign, &sa_old);
+
     if (pipe(ctl_data->child_in) == -1) {
 	error(_("extract_list - error setting up pipe to extractor: %s\n"),
 	      strerror(errno));
@@ -3606,6 +3620,9 @@ start_processing_data(
 	extract_files_child(ctl_data);
 	/*NOTREACHED*/
     }
+    sigaction(SIGINT, &sa_old, NULL);
+    if (ctl_data->pid > 0)
+	extract_restore_child_pid = ctl_data->pid;
 
     stderr_isatty = isatty(fileno(stderr));
 
