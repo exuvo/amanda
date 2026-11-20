@@ -73,9 +73,7 @@
 #define	_FILE_OFFSET_BITS 64
 #endif
 
-#ifdef HAVE_SYS_TYPES_H
 #  include <sys/types.h>
-#endif
 
 /* gnulib creates this header locally if the system doesn't provide it,
  * so it uses a local ("") include */
@@ -91,22 +89,8 @@
  */
 
 /* from the autoconf documentation */
-#ifdef HAVE_DIRENT_H
 #  include <dirent.h>
 #  define NAMLEN(dirent) strlen((dirent)->d_name)
-#else
-#  define dirent direct
-#  define NAMLEN(dirent) (dirent)->d_namlen
-#  if HAVE_SYS_NDIR_H
-#    include <sys/ndir.h>
-#  endif
-#  if HAVE_SYS_DIR_H
-#    include <sys/dir.h>
-#  endif
-#  if HAVE_NDIR_H
-#    include <ndir.h>
-#  endif
-#endif
 
 #include <libintl.h>
 #include <locale.h>
@@ -117,13 +101,9 @@
 #define _(String)			dgettext("amanda", (String))
 #endif
 
-#ifdef HAVE_FCNTL_H
 #  include <fcntl.h>
-#endif
 
-#ifdef HAVE_GRP_H
 #  include <grp.h>
-#endif
 
 #if defined(USE_DB_H)
 #  include <db.h>
@@ -145,94 +125,44 @@
 #  include <sys/time.h>
 #  include <time.h>
 #else
-#  ifdef HAVE_SYS_TIME_H
 #    include <sys/time.h>
-#  else
-#    include <time.h>
-#  endif
 #endif
 
-#ifdef HAVE_LIBC_H
-#  include <libc.h>
-#endif
 
-#ifdef HAVE_STDLIB_H
 #  include <stdlib.h>
-#endif
 
-#ifdef HAVE_LIBGEN_H
 #  include <libgen.h>
-#endif
 
-#ifdef HAVE_STRING_H
 #  include <string.h>
-#endif
 
-#ifdef HAVE_STRINGS_H
 #  include <strings.h>
-#endif
 
-#ifdef HAVE_SYSLOG_H
 #  include <syslog.h>
-#endif
 
-#ifdef HAVE_MATH_H
 #  include <math.h>
-#endif
 
-#ifdef HAVE_SYS_FILE_H
 #  include <sys/file.h>
-#endif
 
-#ifdef HAVE_SYS_IOCTL_H
 #  include <sys/ioctl.h>
-#endif
 
-#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#endif
 
-#ifdef HAVE_SYS_PARAM_H
 #  include <sys/param.h>
-#endif
 
-#if defined(HAVE_SYS_IPC_H) && defined(HAVE_SYS_SHM_H)
 #  include <sys/ipc.h>
 #  include <sys/shm.h>
-#else
-#  ifdef HAVE_SYS_MMAN_H
-#    include <sys/mman.h>
-#  endif
-#endif
 
-#ifdef HAVE_SYS_SELECT_H
 #  include <sys/select.h>
-#endif
 
-#ifdef HAVE_SYS_STAT_H
 #  include <sys/stat.h>
-#endif
 
-#ifdef HAVE_SYS_UIO_H
 #  include <sys/uio.h>
-#else
-struct iovec {
-    void *iov_base;
-    int iov_len;
-};
-#endif
 
-#ifdef HAVE_WAIT_H
 #  include <wait.h>
-#endif
 
-#ifdef HAVE_SYS_WAIT_H
 #  include <sys/wait.h>
-#endif
 
-#ifdef HAVE_STDARG_H
 #include <stdarg.h>
-#endif
 
 #ifdef WAIT_USES_INT
   typedef int amwait_t;
@@ -275,22 +205,12 @@ struct iovec {
 # define WIFSIGNALED(stat_val)	(WTERMSIG(stat_val) != 0)
 #endif
 
-#ifdef HAVE_UNISTD_H
 #  include <unistd.h>
-#endif
 
-#if HAVE_EUIDACCESS
 #   define EUIDACCESS euidaccess
-#elif HAVE_EACCESS
-#   define EUIDACCESS eaccess
-#else
-#   define EUIDACCESS access
-#endif
 
 
-#ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
-#endif
 
 #include <ctype.h>
 #include <errno.h>
@@ -309,14 +229,6 @@ struct iovec {
 #define INET_ADDRSTRLEN 16
 #endif
 
-#if !defined(HAVE_SIGACTION) && defined(HAVE_SIGVEC)
-/* quick'n'dirty hack for NextStep31 */
-#  define sa_flags sv_flags
-#  define sa_handler sv_handler
-#  define sa_mask sv_mask
-#  define sigaction sigvec
-#  define sigemptyset(mask) /* no way to clear pending signals */
-#endif
 
 /*
  * Most Unixen declare errno in <errno.h>, some don't.  Some multithreaded
@@ -633,257 +545,62 @@ time_t	unctime(char *timestr);
  */
 
 /* AIX #defines accept, and provides a prototype for the alternate name */
-#if !defined(HAVE_ACCEPT_DECL) && !defined(accept)
-extern int accept(int s, struct sockaddr *addr, socklen_t_equiv *addrlen);
-#endif
 
-#ifndef HAVE_ATOF_DECL
-extern double atof(const char *ptr);
-#endif
 
-#ifndef HAVE_BCOPY
-# define bcopy(from,to,n) ((void)memmove((to), (from), (n)))
-#else
-# ifndef HAVE_BCOPY_DECL
-extern void bcopy(const void *s1, void *s2, size_t n);
-# endif
-#endif
 
-#ifndef HAVE_BIND_DECL
-extern int bind(int s, const struct sockaddr *name, socklen_t_equiv namelen);
-#endif
 
-#ifndef HAVE_BZERO
-#define bzero(s,n) ((void)memset((s),0,(n)))
-#else
-# ifndef HAVE_BZERO_DECL
-extern void bzero(void *s, size_t n);
-# endif
-#endif
 
-#ifndef HAVE_CLOSELOG_DECL
-extern void closelog(void);
-#endif
 
-#ifndef HAVE_CONNECT_DECL
-extern int connect(int s, struct sockaddr *name, socklen_t_equiv namelen);
-#endif
 
-#ifndef HAVE_FCLOSE_DECL
-extern int fclose(FILE *stream);
-#endif
 
-#ifndef HAVE_FFLUSH_DECL
-extern int fflush(FILE *stream);
-#endif
 
-#ifndef HAVE_FPRINTF_DECL
-extern int fprintf(FILE *stream, const char *format, ...);
-#endif
 
-#ifndef HAVE_FPUTC_DECL
-extern int fputc(int c, FILE *stream);
-#endif
 
-#ifndef HAVE_FPUTS_DECL
-extern int fputs(const char *s, FILE *stream);
-#endif
 
-#ifndef HAVE_FREAD_DECL
-extern size_t fread(void *ptr, size_t size, size_t nitems, FILE *stream);
-#endif
 
-#ifndef HAVE_FSEEK_DECL
-extern int fseek(FILE *stream, long offset, int ptrname);
-#endif
 
-#ifndef HAVE_FWRITE_DECL
-extern size_t fwrite(const void *ptr, size_t size, size_t nitems,
-			FILE *stream);
-#endif
 
-#ifndef HAVE_GETHOSTNAME_DECL
-extern int gethostname(char *name, int namelen);
-#endif
 
-#ifndef HAVE_GETOPT_DECL
-extern char *optarg;
-extern int getopt(int argc, char * const *argv, const char *optstring);
-#endif
 
 /* AIX #defines getpeername, and provides a prototype for the alternate name */
-#if !defined(HAVE_GETPEERNAME_DECL) && !defined(getpeername)
-extern int getpeername(int s, struct sockaddr *name, socklen_t_equiv *namelen);
-#endif
 
 /* AIX #defines getsockname, and provides a prototype for the alternate name */
-#if !defined(HAVE_GETSOCKNAME_DECL) && !defined(getsockname)
-extern int getsockname(int s, struct sockaddr *name, socklen_t_equiv *namelen);
-#endif
 
-#ifndef HAVE_GETSOCKOPT_DECL
-extern int getsockopt(int s, int level, int optname, char *optval,
-			 socklen_t_equiv *optlen);
-#endif
 
-#ifndef HAVE_INITGROUPS
-# define initgroups(name,basegid) 0
-#else
-# ifndef HAVE_INITGROUPS_DECL
-extern int initgroups(const char *name, gid_t basegid);
-# endif
-#endif
 
-#ifndef HAVE_IOCTL_DECL
-extern int ioctl(int fildes, int request, ...);
-#endif
 
 #ifndef isnormal
-#ifndef HAVE_ISNORMAL
 #define	isnormal(f) (((f) < 0.0) || ((f) > 0.0))
 #endif
-#endif
 
-#ifndef HAVE_LISTEN_DECL
-extern int listen(int s, int backlog);
-#endif
 
-#ifndef HAVE_LSTAT_DECL
-extern int lstat(const char *path, struct stat *buf);
-#endif
 
-#ifndef HAVE_MALLOC_DECL
-extern void *malloc (size_t size);
-#endif
 
-#ifndef HAVE_MEMMOVE_DECL
-#ifdef HAVE_MEMMOVE
-extern void *memmove(void *to, const void *from, size_t n);
-#else
-extern char *memmove(char *to, /*const*/ char *from, size_t n);
-#endif
-#endif
 
-#ifndef HAVE_MEMSET_DECL
-extern void *memset(void *s, int c, size_t n);
-#endif
 
-#ifndef HAVE_MKTEMP_DECL
-extern char *mktemp(char *template);
-#endif
 
-#ifndef HAVE_MKSTEMP_DECL
-extern int mkstemp(char *template);
-#endif
 
-#ifndef HAVE_MKTIME_DECL
-extern time_t mktime(struct tm *timeptr);
-#endif
 
-#ifndef HAVE_OPENLOG_DECL
-#ifdef LOG_AUTH
-extern void openlog(const char *ident, int logopt, int facility);
-#else
-extern void openlog(const char *ident, int logopt);
-#endif
-#endif
 
-#ifndef HAVE_PCLOSE_DECL
-extern int pclose(FILE *stream);
-#endif
 
-#ifndef HAVE_PERROR_DECL
-extern void perror(const char *s);
-#endif
 
-#ifndef HAVE_PRINTF_DECL
-extern int printf(const char *format, ...);
-#endif
 
-#ifndef HAVE_PUTS_DECL
-extern int puts(const char *s);
-#endif
 
-#ifndef HAVE_REALLOC_DECL
-extern void *realloc(void *ptr, size_t size);
-#endif
 
 /* AIX #defines recvfrom, and provides a prototype for the alternate name */
-#if !defined(HAVE_RECVFROM_DECL) && !defined(recvfrom)
-extern int recvfrom(int s, char *buf, int len, int flags,
-		       struct sockaddr *from, socklen_t_equiv *fromlen);
-#endif
 
-#ifndef HAVE_REMOVE_DECL
-extern int remove(const char *path);
-#endif
 
-#ifndef HAVE_RENAME_DECL
-extern int rename(const char *old, const char *new);
-#endif
 
-#ifndef HAVE_REWIND_DECL
-extern void rewind(FILE *stream);
-#endif
 
-#ifndef HAVE_RUSEROK_DECL
-extern int ruserok(const char *rhost, int suser,
-		      const char *ruser, const char *luser);
-#endif
 
-#ifndef HAVE_SELECT_DECL
-extern int select(int nfds,
-		     SELECT_ARG_TYPE *readfds,
-		     SELECT_ARG_TYPE *writefds,
-		     SELECT_ARG_TYPE *exceptfds,
-		     struct timeval *timeout);
-#endif
 
-#ifndef HAVE_SENDTO_DECL
-extern int sendto(int s, const char *msg, int len, int flags,
-		     const struct sockaddr *to, int tolen);
-#endif
 
-#ifdef HAVE_SETRESGID
 #define	setegid(x)	setresgid((gid_t)-1,(x),(gid_t)-1)
-#ifndef HAVE_SETRESGID_DECL
-extern int setresgid(gid_t rgid, gid_t egid, gid_t sgid);
-#endif
-#else
-#ifndef HAVE_SETEGID_DECL
-extern int setegid(gid_t egid);
-#endif
-#endif
 
-#ifdef HAVE_SETRESUID
 #define	seteuid(x)	setresuid((uid_t)-1,(x),(uid_t)-1)
-#ifndef HAVE_SETRESUID_DECL
-extern int setresuid(uid_t ruid, uid_t euid, uid_t suid);
-#endif
-#else
-#ifndef HAVE_SETEUID_DECL
-extern int seteuid(uid_t euid);
-#endif
-#endif
 
-#ifndef HAVE_SETPGID_DECL
-#ifdef HAVE_SETPGID
-extern int setpgid(pid_t pid, pid_t pgid);
-#endif
-#endif
 
-#ifndef HAVE_SETPGRP_DECL
-#ifdef SETPGRP_VOID
-extern pid_t setpgrp(void);
-#else
-extern pid_t setpgrp(pid_t pgrp, pid_t pid);
-#endif
-#endif
 
-#ifndef HAVE_SETSOCKOPT_DECL
-extern int setsockopt(int s, int level, int optname,
-			 const char *optval, int optlen);
-#endif
 
 #ifdef HAVE_SHMGET
 #ifndef HAVE_SHMAT_DECL
@@ -903,75 +620,21 @@ extern int shmget(key_t key, size_t size, int shmflg);
 #endif
 #endif
 
-#ifndef HAVE_SNPRINTF_DECL
-int snprintf(char *buf, size_t len, const char *format,...)
-     G_GNUC_PRINTF(3,4);
-#endif
-#ifndef HAVE_VSNPRINTF_DECL
-int vsnprintf(char *buf, size_t len, const char *format, va_list ap);
-#endif
 
-#ifndef HAVE_SOCKET_DECL
-extern int socket(int domain, int type, int protocol);
-#endif
 
-#ifndef HAVE_SOCKETPAIR_DECL
-extern int socketpair(int domain, int type, int protocol, int sv[2]);
-#endif
 
-#ifndef HAVE_SSCANF_DECL
-extern int sscanf(const char *s, const char *format, ...);
-#endif
 
-#ifndef HAVE_STRCASECMP_DECL
-extern int strcasecmp(const char *s1, const char *s2);
-#endif
 
-#ifndef HAVE_STRERROR_DECL
-extern char *strerror(int errnum);
-#endif
 
-#ifndef HAVE_STRFTIME_DECL
-extern size_t strftime(char *s, size_t maxsize, const char *format,
-			  const struct tm *timeptr);
-#endif
 
-#ifndef HAVE_STRNCASECMP_DECL
-extern int strncasecmp(const char *s1, const char *s2, int n);
-#endif
 
-#ifndef HAVE_SYSLOG_DECL
-extern void syslog(int priority, const char *logstring, ...)
-     G_GNUC_PRINTF(2,3);
-#endif
 
-#ifndef HAVE_SYSTEM_DECL
-extern int system(const char *string);
-#endif
 
-#ifndef HAVE_TIME_DECL
-extern time_t time(time_t *tloc);
-#endif
 
-#ifndef HAVE_TOLOWER_DECL
-extern int tolower(int c);
-#endif
 
-#ifndef HAVE_TOUPPER_DECL
-extern int toupper(int c);
-#endif
 
-#ifndef HAVE_UNGETC_DECL
-extern int ungetc(int c, FILE *stream);
-#endif
 
-#ifndef HAVE_VFPRINTF_DECL
-extern int vfprintf(FILE *stream, const char *format, va_list ap);
-#endif
 
-#ifndef HAVE_VPRINTF_DECL
-extern int vprintf(const char *format, va_list ap);
-#endif
 
 /* these system headers are added by gnulib if they
  * do not exist */
@@ -999,9 +662,6 @@ extern pid_t waitpid(pid_t pid, amwait_t *stat_loc, int options);
 #endif
 #endif
 
-#ifndef HAVE_WRITEV_DECL
-extern ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
-#endif
 
 #ifndef STDIN_FILENO
 #define STDIN_FILENO 0
@@ -1067,16 +727,8 @@ extern ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
 #endif
 
 #if SIZEOF_OFF_T > SIZEOF_LONG
-#  ifdef HAVE_ATOLL
 #    define        OFF_T_ATOI	 (off_t)atoll
-#  else
-#    define        OFF_T_ATOI	 (off_t)atol
-#  endif
-#  ifdef HAVE_STRTOLL
 #    define        OFF_T_STRTOL	 (off_t)strtoll
-#  else
-#    define        OFF_T_STRTOL	 (off_t)strtol
-#  endif
 #else
 #  if SIZEOF_OFF_T == SIZEOF_LONG
 #    define        OFF_T_ATOI	 (off_t)atol

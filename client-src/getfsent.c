@@ -46,111 +46,6 @@
  * Geesh.
  */
 
-#if defined(HAVE_FSTAB_H) && !defined(HAVE_MNTENT_H) /* { */
-/*
-** BSD (GETFSENT_BSD)
-*/
-#define GETFSENT_TYPE "BSD (Ultrix, AIX)"
-
-#include <fstab.h>
-
-int
-open_fstab(void)
-{
-    return setfsent();
-}
-
-void
-close_fstab(void)
-{
-    endfsent();
-}
-
-
-int
-get_fstab_nextentry(
-    generic_fsent_t *	fsent)
-{
-    struct fstab *sys_fsent = getfsent();
-    static char *xfsname = NULL, *xmntdir = NULL;
-    static char *xfstype = NULL, *xmntopts = NULL;
-
-    if(!sys_fsent)
-	return 0;
-    g_free(xfsname);
-    fsent->fsname = xfsname = g_strdup(sys_fsent->fs_spec);
-    g_free(xmntdir);
-    fsent->mntdir = xmntdir = g_strdup(sys_fsent->fs_file);
-    fsent->freq    = sys_fsent->fs_freq;
-    fsent->passno  = sys_fsent->fs_passno;
-#ifdef STATFS_ULTRIX
-    g_free(xfstype);
-    fsent->fstype = xfstype = g_strdup(sys_fsent->fs_name);
-    g_free(xmntopts);
-    fsent->mntopts = xmntopts = g_strdup(sys_fsent->fs_opts);
-#else
-#if defined(_AIX)
-    g_free(xfstype);
-    fsent->fstype = xfstype = g_strdup(_("unknown"));
-    g_free(xmntopts);
-    fsent->mntopts = xmntopts = g_strdup(sys_fsent->fs_type);
-#else
-    g_free(xfstype);
-    fsent->fstype = xfstype = g_strdup(sys_fsent->fs_vfstype);
-    g_free(xmntopts);
-    fsent->mntopts = xmntopts = g_strdup(sys_fsent->fs_mntops);
-#endif
-#endif
-    return 1;
-}
-
-#else
-#if defined(HAVE_SYS_VFSTAB_H) /* } { */
-/*
-** SVR4 (GETFSENT_SOLARIS)
-*/
-#define GETFSENT_TYPE "SVR4 (Solaris)"
-
-#include <sys/vfstab.h>
-
-static FILE *fstabf = NULL;
-
-int
-open_fstab(void)
-{
-    close_fstab();
-    return (fstabf = fopen(VFSTAB, "r")) != NULL;
-}
-
-void
-close_fstab(void)
-{
-    if(fstabf)
-	afclose(fstabf);
-    fstabf = NULL;
-}
-
-int
-get_fstab_nextentry(
-    generic_fsent_t *	fsent)
-{
-    struct vfstab sys_fsent;
-
-    memset(&sys_fsent, 0, sizeof(sys_fsent));
-    if(getvfsent(fstabf, &sys_fsent) != 0)
-	return 0;
-
-    fsent->fsname  = sys_fsent.vfs_special;
-    fsent->fstype  = sys_fsent.vfs_fstype;
-    fsent->mntdir  = sys_fsent.vfs_mountp;
-    fsent->mntopts = sys_fsent.vfs_mntopts;
-    fsent->freq    = 1;	/* N/A */
-    fsent->passno  = sys_fsent.vfs_fsckpass? atoi(sys_fsent.vfs_fsckpass) : 0;
-    return 1;
-}
-
-#else
-#  if defined(HAVE_MNTENT_H) /* } { */
 
 /*
 ** System V.3 (GETFSENT_SVR3, GETFSENT_LINUX)
@@ -159,11 +54,7 @@ get_fstab_nextentry(
 
 #include <mntent.h>
 
-#if defined(HAVE_ENDMNTENT)
 #define AMCLOSE_MNTENT(x)	endmntent(x)
-#else
-#define AMCLOSE_MNTENT(x)	fclose(x)
-#endif
 
 static FILE *fstabf1 = NULL;		/* /proc/mounts */
 static FILE *fstabf2 = NULL;		/* MOUNTED */
@@ -173,7 +64,6 @@ int
 open_fstab(void)
 {
     close_fstab();
-#if defined(HAVE_SETMNTENT)
     fstabf1 = setmntent("/proc/mounts", "r");
 # if defined(MOUNTED)
     fstabf2 = setmntent(MOUNTED, "r");
@@ -181,11 +71,6 @@ open_fstab(void)
 # if defined(MNTTAB)
     fstabf3 = setmntent(MNTTAB, "r");
 # endif
-#else
-# if defined(MNTTAB)
-    fstabf3 = fopen(MNTTAB, "r");
-# endif
-#endif
     return (fstabf1 != NULL || fstabf2 != NULL || fstabf3 != NULL);
 }
 
@@ -246,175 +131,6 @@ get_fstab_nextentry(
     return 1;
 }
 
-#  else
-#    if defined(HAVE_SYS_MNTTAB_H) || defined(STATFS_SCO_OS5) /* } { */
-
-/* we won't actually include mnttab.h, since it contains nothing useful.. */
-
-#define GETFSENT_TYPE "SVR3 (Interactive UNIX)"
-
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-
-#define FSTAB "/etc/fstab"
-
-static FILE *fstabf = NULL;
-
-int
-open_fstab(void)
-{
-    close_fstab();
-    return (fstabf = fopen(FSTAB, "r")) != NULL;
-}
-
-void
-close_fstab(void)
-{
-    if(fstabf)
-	afclose(fstabf);
-    fstabf = NULL;
-}
-
-static generic_fsent_t _fsent;
-
-int
-get_fstab_nextentry(
-    generic_fsent_t *	fsent)
-{
-    static char *lfsnam = NULL;
-    static char *opts = NULL;
-    static char *cp = NULL;
-    char *s;
-    int ch;
-
-    amfree(cp);
-    for (; (cp = agets(fstabf)) != NULL; free(cp)) {
-	if (cp[0] == '\0')
-	    continue;
-	fsent->fsname = strtok(cp, " \t");
-	if ( fsent->fsname && *fsent->fsname != '#' )
-	    break;
-    }
-    if (cp == NULL) return 0;
-
-    fsent->mntdir = strtok((char *)NULL, " \t");
-    fsent->mntopts = strtok((char *)NULL, " \t");
-    if ( *fsent->mntopts != '-' )  {
-	fsent->fstype = fsent->mntopts;
-	fsent->mntopts = "rw";
-    } else {
-	fsent->fstype = "";
-	if (g_str_equal(fsent->mntopts, "-r")) {
-	    fsent->mntopts = "ro";
-	}
-    }
-    if ((s = strchr(fsent->fstype, ',')) != NULL) {
-	*s++ = '\0';
-	strappend(fsent->mntopts, ",");
-	strappend(fsent->mntopts, s);
-    }
-
-    g_free(lfsnam);
-    lfsnam = g_strdup(fsent->fstype);
-    s = lfsnam;
-    while((ch = *s++) != '\0') {
-	if(isupper(ch)) ch = tolower(ch);
-	s[-1] = ch;
-    }
-    fsent->fstype = lfsnam;
-
-    if (strncmp_const(fsent->fstype, "hs") == 0)
-	fsent->fstype = "iso9660";
-
-    fsent->freq = 0;
-    fsent->passno = 0;
-
-    return 1;
-}
-
-#    else
-#      if defined(HAVE_MNTTAB_H) /* } { */
-
-#define GETFSENT_TYPE "SVR3 (SCO UNIX)"
-
-#include <mnttab.h>
-#include <sys/fstyp.h>
-#include <sys/statfs.h>
-
-#define MNTTAB "/etc/mnttab"
-
-/*
- * If these are defined somewhere please let me know.
- */
-
-#define MNT_READONLY 0101
-#define MNT_READWRITE 0100
-
-static FILE *fstabf = NULL;
-
-int
-open_fstab(void)
-{
-    close_fstab();
-    return (fstabf = fopen(MNTTAB, "r")) != NULL;
-}
-
-void
-close_fstab(void)
-{
-    if(fstabf)
-	afclose(fstabf);
-    fstabf = NULL;
-}
-
-static generic_fsent_t _fsent;
-
-int
-get_fstab_nextentry(
-    generic_fsent_t *fsent)
-{
-    struct statfs fsd;
-    char typebuf[FSTYPSZ];
-    static struct mnttab mnt;
-    char *dp, *ep;
-
-    if(!fread (&mnt, sizeof(mnt), 1, fstabf))
-      return 0;
-
-    fsent->fsname  = mnt.mt_dev;
-    fsent->mntdir  = mnt.mt_filsys;
-    fsent->fstype = "";
-
-    if (statfs (fsent->mntdir, &fsd, sizeof(fsd), 0) != -1
-        && sysfs (GETFSTYP, fsd.f_fstyp, typebuf) != -1) {
-       dp = typebuf;
-       ep = fsent->fstype = malloc(strlen(typebuf)+2);
-       while (*dp)
-            *ep++ = tolower(*dp++);
-       *ep=0;
-    }
-
-    if ( mnt.mt_ro_flg == MNT_READONLY ) {
-	fsent->mntopts = "ro";
-    } else {
-	fsent->mntopts = "rw";
-    }
-
-    fsent->freq = 0;
-    fsent->passno = 0;
-    return 1;
-}
-
-#      else /* } { */
-
-#define GETFSENT_TYPE "undefined"
-
-#      endif
-#    endif
-#  endif
-#endif
-#endif /* } */
 
 #ifndef IGNORE_FSTAB
 static int samefile(struct stat[3], struct stat *);

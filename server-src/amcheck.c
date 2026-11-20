@@ -982,12 +982,6 @@ start_server_check(
 		    confbad = 1;
 		}
 		amfree(lbl_templ);
-#if !defined(HAVE_LPR_CMD)
-		delete_message(amcheck_fprint_message(outf, build_message(
-			AMANDA_FILE, __LINE__, 2800030, MSG_ERROR, 1,
-			"storage",	storage_n)));
-		confbad = 1;
-#endif
 	    }
 
 	    if (storage_get_flush_threshold_scheduled(storage)

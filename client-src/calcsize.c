@@ -373,19 +373,6 @@ main(
  * =========================================================================
  */
 
-#if !defined(HAVE_BASENAME) && defined(BUILTIN_EXCLUDE_SUPPORT)
-
-static char *
-basename(
-    char *	file)
-{
-    char *cp;
-
-    if ( (cp = strrchr(file,'/')) )
-	return cp+1;
-    return file;
-}
-#endif
 
 void push_name(char *str);
 char *pop_name(void);

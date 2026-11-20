@@ -996,10 +996,8 @@ known_compress_type(
 {
     if(g_str_equal(file->comp_suffix, ".Z"))
 	return 1;
-#ifdef HAVE_GZIP
     if(g_str_equal(file->comp_suffix, ".gz"))
 	return 1;
-#endif
     if(g_str_equal(file->comp_suffix, "cust"))
 	return 1;
     return 0;

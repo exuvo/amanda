@@ -1151,11 +1151,6 @@ check_status(
 	/*
 	 * compress returns 2 sometimes, but it is ok.
 	 */
-#ifndef HAVE_GZIP
-	if(ret == 2) {
-	    rc = 0;
-	}
-#endif
 	comppid = -1;
 	strX = "compress";
     } else if(pid == encpid) {

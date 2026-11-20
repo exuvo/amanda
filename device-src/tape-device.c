@@ -26,15 +26,8 @@
 #include "amutil.h"
 #include "device.h"
 
-#ifdef HAVE_SYS_TAPE_H
-# include <sys/tape.h>
-#endif
-#ifdef HAVE_SYS_MTIO_H
 # include <sys/mtio.h>
-#endif
-#ifdef HAVE_LIMITS_H
 # include <limits.h>
-#endif
 
 /* This is equal to 2*1024*1024*1024 - 16*1024*1024 - 1, but written
    explicitly to avoid overflow issues. */

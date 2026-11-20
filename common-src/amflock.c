@@ -352,48 +352,14 @@ file_lock_unlock(
  * Old Implementation
  */
 
-/*
-**
-** Notes:
-** - These are "best effort" routines.
-** - "configure" has four variables that are used to determine which type of
-**   locking to use:
-**     USE_POSIX_FCNTL - use fcntl().  The full job.
-**     USE_FLOCK       - use flock().  Does just as well.
-**     USE_LOCKF       - use lockf().  Only handles advisory, exclusive,
-**                       blocking file locks as used by Amanda.
-**     USE_LNLOCK      - Home brew exclusive, blocking file lock.
-**     <none>          - No locking available.  User beware!
-*/
+/* File locking uses fcntl() (POSIX record locks); see amflock-posix.c */
 
 /* Interface to the implementations in common-src/amflock-*.c */
 
-#ifdef WANT_AMFLOCK_POSIX
 extern amflock_impl_t amflock_posix_impl;
-#endif
-#ifdef WANT_AMFLOCK_FLOCK
-extern amflock_impl_t amflock_flock_impl;
-#endif
-#ifdef WANT_AMFLOCK_LOCKF
-extern amflock_impl_t amflock_lockf_impl;
-#endif
-#ifdef WANT_AMFLOCK_LNLOCK
-extern amflock_impl_t amflock_lnlock_impl;
-#endif
 
 amflock_impl_t *amflock_impls[] = {
-#ifdef WANT_AMFLOCK_POSIX
     &amflock_posix_impl,
-#endif
-#ifdef WANT_AMFLOCK_FLOCK
-    &amflock_flock_impl,
-#endif
-#ifdef WANT_AMFLOCK_LOCKF
-    &amflock_lockf_impl,
-#endif
-#ifdef WANT_AMFLOCK_LNLOCK
-    &amflock_lnlock_impl,
-#endif
     NULL
 };
 

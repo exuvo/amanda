@@ -43,9 +43,6 @@ safe_env_full(char **add)
     gboolean keep_all_env;
     static char *safe_env_list[] = {
 	"TZ",
-#ifdef __CYGWIN__
-	"SYSTEMROOT",
-#endif
 #ifdef NEED_PATH_ENV
 	"PATH",
 #endif

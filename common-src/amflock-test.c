@@ -46,9 +46,6 @@ test_old_impls(void)
     int fd;
     int lock_ro;
 
-    /* set lnlock's lock directory to the current directory */
-    extern char *_lnlock_dir;
-    _lnlock_dir = ".";
 
     while (*imp) {
 	tu_dbg("Testing amflock-%s\n", (*imp)->impl_name);

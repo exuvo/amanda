@@ -236,9 +236,7 @@ main(
      * On other operating systems this will have no effect.
      */
 
-#ifdef HAVE_UNSETENV
     unsetenv("SUN_PERSONALITY");
-#endif
 
     /*
      * When called via inetd, it is not uncommon to forget to put the

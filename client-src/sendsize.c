@@ -49,29 +49,12 @@
 	}				\
 } while (0)
 
-#ifdef HAVE_SETPGID
 #  define SETPGRP	setpgid(getpid(), getpid())
 #  define SETPGRP_FAILED() do {						\
     dbprintf(_("setpgid(%ld,%ld) failed: %s\n"),				\
 	      (long)getpid(), (long)getpid(), strerror(errno));	\
 } while(0)
 
-#else /* () line 0 */
-#if defined(SETPGRP_VOID)
-#  define SETPGRP	setpgrp()
-#  define SETPGRP_FAILED() do {						\
-    dbprintf(_("setpgrp() failed: %s\n"), strerror(errno));		\
-} while(0)
-
-#else
-#  define SETPGRP	setpgrp(0, getpid())
-#  define SETPGRP_FAILED() do {						\
-    dbprintf(_("setpgrp(0,%ld) failed: %s\n"),				\
-	      (long)getpid(), strerror(errno));			\
-} while(0)
-
-#endif
-#endif
 
 typedef struct level_estimates_s {
     time_t dumpsince;

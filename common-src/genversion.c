@@ -319,9 +319,6 @@ main(
     prstr("HAVE_MMAP");
 #endif
 
-#ifndef HAVE_STRERROR
-    prstr("NEED_STRERROR");
-#endif
 
 #ifndef HAVE_STRSTR
     prstr("NEED_STRSTR");
@@ -331,18 +328,7 @@ main(
     prstr("HAVE_SYSVSHM");
 #endif
 
-#ifdef WANT_AMFLOCK_POSIX
     prstr("AMFLOCK_POSIX");
-#endif
-#ifdef WANT_AMFLOCK_FLOCK
-    prstr("AMFLOCK_FLOCK");
-#endif
-#ifdef WANT_AMFLOCK_LOCKF
-    prstr("AMFLOCK_LOCKF");
-#endif
-#ifdef WANT_AMFLOCK_LNLOCK
-    prstr("AMFLOCK_LNLOCK");
-#endif
 
 #ifdef STATFS_BSD
     prstr("STATFS_BSD");
@@ -375,9 +361,7 @@ main(
     prstr("CHECK_USERID");
 #endif
 
-#ifdef HAVE_GZIP
     prstr("HAVE_GZIP");
-#endif
 
 #ifdef COMPRESS_SUFFIX
     prvar("COMPRESS_SUFFIX", COMPRESS_SUFFIX);

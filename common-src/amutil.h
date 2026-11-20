@@ -368,34 +368,10 @@ void pop_component_module(void);
  * or prototypes some simple stub functions that are used instead.
  */
 
-#ifdef HAVE_LIBREADLINE
-#  if defined(HAVE_READLINE_READLINE_H)
 #    include <readline/readline.h>
-#  elif defined(HAVE_READLINE_H)
-#    include <readline.h>
-#  else /* !defined(HAVE_READLINE_H) */
-extern char *readline ();
-#  endif /* !defined(HAVE_READLINE_H) */
    /* char *cmdline = NULL; */
-#else /* !defined(HAVE_LIBREADLINE) */
-  /* use our own readline */
-char * readline(const char *prompt);
-#endif /* HAVE_LIBREADLINE */
 
-#ifdef HAVE_READLINE_HISTORY
-#  if defined(HAVE_READLINE_HISTORY_H)
 #    include <readline/history.h>
-#  elif defined(HAVE_HISTORY_H)
-#    include <history.h>
-#  else /* !defined(HAVE_HISTORY_H) */
-extern void add_history ();
-extern int write_history ();
-extern int read_history ();
-#  endif /* defined(HAVE_READLINE_HISTORY_H) */
-#else /* !defined(HAVE_READLINE_HISTORY) */
-  /* use our own add_history */
-void   add_history(const char *line);
-#endif /* HAVE_READLINE_HISTORY */
 
 char *base64_decode_alloc_string(char *);
 
@@ -403,11 +379,7 @@ char *base64_decode_alloc_string(char *);
  * that an amandad service inherits.  This won't be necessary once the new
  * threading library is availble (OpenBSD 5.0?), but won't hurt anyway.  See the
  * thread "Backup issues with OpenBSD 4.5 machines" from September 2009. */
-#ifdef __OpenBSD__
-void openbsd_fd_inform(void);
-#else
 #define openbsd_fd_inform()
-#endif
 
 /* Add all properties to an ARGV
  *

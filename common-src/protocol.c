@@ -194,11 +194,7 @@ protocol_sendreq(
 
     if (distro != NULL &&
 	!g_str_equal(distro, "mac") &&
-#if defined HAVE_FUNC_GETSERVBYNAME_R_4 || defined HAVE_FUNC_GETSERVBYNAME_R_5 || defined HAVE_FUNC_GETSERVBYNAME_R_6
 	1 &&
-#else
-	0 &&
-#endif
 	(
 #ifdef BSDTCP_SECURITY
 	 security_driver == &bsdtcp_security_driver ||

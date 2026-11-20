@@ -366,27 +366,10 @@ connect_port(
     int			s;
     int			r;
 
-#ifdef HAVE_FUNC_GETSERVBYNAME_R_6
     struct servent	servPort;
     char		buf[2048];
     r = getservbyport_r((int)htons(port), proto, &servPort, buf, 2048, &result);
     assert(r != ERANGE);
-#elif defined HAVE_FUNC_GETSERVBYNAME_R_5
-    struct servent	servPort;
-    char		buf[2048];
-    result = getservbyport_r((int)htons(port), proto, &servPort, buf, 2048);
-    if (result == 0) {
-	assert(errno != ERANGE);
-    }
-#elif defined HAVE_FUNC_GETSERVBYNAME_R_4
-    struct servent	servPort;
-    struct servent_data servent_data;
-    memset(&servent_data, 0, sizeof(struct servent_data));
-    r = getservbyport_r((int)htons(port), proto, &servPort, &servent_data);
-    result = &servPort;
-#else
-    result = getservbyport((int)htons(port), proto);
-#endif
 
     if (result != NULL && !strstr(result->s_name, AMANDA_SERVICE_NAME)) {
 	dbprintf(_("connect_port: Skip port %d: owned by %s.\n"),
@@ -545,27 +528,10 @@ bind_portrange(
      * if we don't happen to start at the beginning.
      */
     for (cnt = 0; cnt < num_ports; cnt++) {
-#ifdef HAVE_FUNC_GETSERVBYNAME_R_6
 	struct servent  servPort;
 	char		buf[2048];
 	r = getservbyport_r((int)htons(port), proto, &servPort, buf, 2048, &result);
 	assert(r != ERANGE);
-#elif defined HAVE_FUNC_GETSERVBYNAME_R_5
-	struct servent  servPort;
-	char		buf[2048];
-	result = getservbyport_r((int)htons(port), proto, &servPort, buf, 2048);
-	if (result == 0) {
-	    assert(errno != ERANGE);
-	}
-#elif defined HAVE_FUNC_GETSERVBYNAME_R_4
-	struct servent  servPort;
-	struct servent_data servent_data;
-	memset(&servent_data, 0, sizeof(struct servent_data));
-	r = getservbyport_r((int)htons(port), proto, &servPort, &servent_data);
-	result = &servPort
-#else
-	result = getservbyport((int)htons(port), proto);
-#endif
 
 	amfree(*bind_msg);
 g_debug("bind_portrange2: Try  port %d", port);
@@ -1478,40 +1444,10 @@ int copy_file(
     return 0;
 }
 
-#ifndef HAVE_LIBREADLINE
-/*
- * simple readline() replacements, used when we don't have readline
- * support from the system.
- */
-
-char *
-readline(
-    const char *prompt)
-{
-    g_printf("%s", prompt);
-    fflush(stdout);
-    fflush(stderr);
-    return pgets(stdin);
-}
-
-void
-add_history(
-    const char *line)
-{
-    (void)line; 	/* Quiet unused parameter warning */
-}
-
-#endif
 
 /* Order of preference: readdir64(), readdir(). */
-#if HAVE_DECL_READDIR64
 #  define USE_DIRENT64
 #  define USE_READDIR64
-#elif HAVE_DECL_READDIR
-#  define USE_READDIR
-#else
-# error No readdir() or readdir64() available!
-#endif
 
 #if (GLIB_MAJOR_VERSION > 2 || (GLIB_MAJOR_VERSION == 2 && GLIB_MINOR_VERSION >= 31))
 # pragma GCC diagnostic push
@@ -2017,18 +1953,6 @@ pop_component_module(void)
 }
 
 
-#ifdef __OpenBSD__
-void
-openbsd_fd_inform(void)
-{
-    int i;
-    for (i = DATA_FD_OFFSET; i < DATA_FD_OFFSET + DATA_FD_COUNT*2; i++) {
-	/* a simple fcntl() will cause the library to "look" at this file
-	 * descriptor, which is good enough */
-	(void)fcntl(i, F_GETFL);
-    }
-}
-#endif
 
 void
 debug_executing(

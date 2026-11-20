@@ -437,12 +437,8 @@ old_sanitise_filename(
 void
 canonicalize_pathname(char *pathname, char *result_buf)
 {
-#ifdef __CYGWIN__
-    cygwin_conv_to_full_posix_path(pathname, result_buf);
-#else
     strncpy(result_buf, pathname, PATH_MAX-1);
     result_buf[PATH_MAX-1] = '\0';
-#endif
 }
 
 /*

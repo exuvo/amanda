@@ -38,9 +38,7 @@
 #include "timestamp.h"
 #include "conffile.h"
 
-#ifdef HAVE_GLIBC_BACKTRACE
 #include <execinfo.h>
-#endif
 
 /* Minimum file descriptor on which to keep the debug file.  This is intended
  * to keep the descriptor "out of the way" of other processing.  It's not clear
@@ -186,7 +184,6 @@ debug_logging_handler(const gchar *log_domain G_GNUC_UNUSED,
 
     /* error and critical levels have special handling */
     if (log_level & (G_LOG_LEVEL_ERROR|G_LOG_LEVEL_CRITICAL)) {
-#ifdef HAVE_GLIBC_BACKTRACE
 	/* try logging a traceback to the debug log */
 	if (!do_suppress_error_traceback && db_fd != -1) {
 	    void *stack[32];
@@ -194,7 +191,6 @@ debug_logging_handler(const gchar *log_domain G_GNUC_UNUSED,
 	    naddrs = backtrace(stack, G_N_ELEMENTS(stack));
 	    backtrace_symbols_fd(stack, naddrs, db_fd);
 	}
-#endif
 
 	/* we're done */
 	if (log_level & G_LOG_LEVEL_CRITICAL)
@@ -493,17 +489,12 @@ debug_setup_2(
 static char *
 msg_timestamp(char timestamp[128])
 {
-#ifdef HAVE_CLOCK_GETTIME
     struct timespec spec;
     struct tm    t;
     int          len;
     int          xlen;
-#else
-    time_t       curtime;
-#endif
     char        *r;
 
-#ifdef HAVE_CLOCK_GETTIME
     clock_gettime(CLOCK_REALTIME, &spec);
     localtime_r(&spec.tv_sec, &t);
 
@@ -516,10 +507,6 @@ msg_timestamp(char timestamp[128])
     xlen = 128 - len;
     snprintf(timestamp+len, xlen, " %04d", 1900 + t.tm_year);
 
-#else
-    time(&curtime);
-    ctime_r(&curtime, timestamp);
-#endif
 
     r = strchr(timestamp, '\n');
     if (r)
@@ -669,59 +656,6 @@ debug_rename(
 
     mask = (mode_t)umask((mode_t)0037);
 
-#if defined(__CYGWIN__)
-    /*
-     * On cygwin, rename will not overwrite an existing file nor
-     * will it rename a file that is open for writing...
-     *
-     * Rename file directly.  Expect failure if file already exists
-     * or is open by another user.
-     */
-
-    i = 0;
-    while (rename(db_filename, s) < 0) {
-	if (errno != EEXIST) {
-	    /*
-	     * If the failure was not due to the target file name already
-	     * existing then we have bigger issues at hand so we keep 
-	     * the existing file.
-	     */
-	    dbprintf(_("Cannot rename \"%s\" to \"%s\": %s\n"),
-		     db_filename, s, strerror(errno));
-	    g_free(s);
-	    s = g_strdup(db_filename);
-	    i = -1;
-	    break;
-	}
-
-	/*
-	 * Files already exists:
-	 * Continue searching for a unique file name that will work.
-	 */
-	amfree(db_name);
-	if ((db_name = get_debug_name(open_time, i++)) == NULL) {
-	    dbprintf(_("Cannot create unique debug file name"));
-	    break;
-	}
-	g_free(s);
-	s = g_strconcat(dbgdir, db_name, NULL);
-    }
-    if (i >= 0) {
-	/*
-	 * We need to close and reopen the original file handle to
-	 * release control of the original debug file name.
-	 */
-	if ((fd = open(s, O_WRONLY|O_APPEND, 0640)) >= 0) {
-	    /*
-	     * We can safely close the the original log file
-	     * since we now have a new working handle.
-	     */
-	    db_fd = 2;
-	    fclose(db_file);
-	    db_file = NULL;
-	}
-    }
-#else
     /* check if a file with the same name already exists. */
     if ((fd = open(s, O_WRONLY|O_CREAT|O_EXCL|O_APPEND, 0640)) < 0) {
 	for(i = 0; fd < 0; i++) {
@@ -751,7 +685,6 @@ debug_rename(
 	}
 	fd = -1;
     }
-#endif
 
     (void)umask(mask); /* Restore mask */
     /*

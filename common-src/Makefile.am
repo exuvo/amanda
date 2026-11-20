@@ -71,21 +71,7 @@ LDADD = libamanda.la
 libamanda_la_LIBADD =		\
 	../gnulib/libgnu.la
 
-if WANT_AMFLOCK_POSIX
 libamanda_la_SOURCES += amflock-posix.c
-endif
-
-if WANT_AMFLOCK_FLOCK
-libamanda_la_SOURCES += amflock-flock.c
-endif
-
-if WANT_AMFLOCK_LOCKF
-libamanda_la_SOURCES += amflock-lockf.c
-endif
-
-if WANT_AMFLOCK_LNLOCK
-libamanda_la_SOURCES += amflock-lnlock.c
-endif
 
 
 

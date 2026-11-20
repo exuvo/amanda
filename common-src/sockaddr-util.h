@@ -40,9 +40,7 @@ typedef union sockaddr_union {
 #ifdef WORKING_IPV6
     struct sockaddr_in6     sin6;
 #endif
-#ifdef HAVE_SOCKADDR_STORAGE
     struct sockaddr_storage ss; /* not used; just here to make the union full-size */
-#endif
 } sockaddr_union;
 
 typedef struct amsbind_s {
