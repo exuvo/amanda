@@ -5,7 +5,7 @@ include $(top_srcdir)/config/automake/scripts.am
 include $(top_srcdir)/config/automake/installperms.am
 include $(top_srcdir)/config/automake/precompile.am
 
-AM_CPPFLAGS = -I$(top_srcdir)/gnulib -I$(top_builddir)/common-src
+AM_CPPFLAGS = -I$(top_builddir)/common-src
 
 AM_CFLAGS = $(AMANDA_WARNING_CFLAGS) $(AMANDA_FILE_CFLAGS)
 AM_LDFLAGS = $(AMANDA_STATIC_LDFLAGS) $(AS_NEEDED_FLAGS)
@@ -32,6 +32,7 @@ libamanda_la_SOURCES =		\
 	amxml.c			\
 	backup_support_option.c	\
 	clock.c			\
+	compat.c		\
 	conffile.c		\
 	debug.c			\
 	event.c			\
@@ -68,8 +69,7 @@ INSTALLPERMS_exec = \
 
 LDADD = libamanda.la
 
-libamanda_la_LIBADD =		\
-	../gnulib/libgnu.la
+libamanda_la_LIBADD =
 
 libamanda_la_SOURCES += amflock-posix.c
 
@@ -128,8 +128,7 @@ EXTRA_PROGRAMS = genversion $(TEST_PROGS) make_security_file
 # 5. version.c is compiled into libamanda normally
 
 genversion_SOURCES = genversion.c svn-info.h
-genversion_LDADD = $(libamanda_la_LIBADD)	\
-	../gnulib/libgnu.la
+genversion_LDADD = $(libamanda_la_LIBADD)
 
 genversion.$(OBJEXT): $(genversion_SOURCES) genversion.h
 

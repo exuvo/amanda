@@ -4,7 +4,7 @@ include $(top_srcdir)/config/automake/vars.am
 include $(top_srcdir)/config/automake/installperms.am
 include $(top_srcdir)/config/automake/precompile.am
 
-AM_CPPFLAGS =      -I$(top_srcdir)/gnulib \
+AM_CPPFLAGS = \
 		-I$(top_srcdir)/device-src \
 		-I$(top_srcdir)/common-src
 

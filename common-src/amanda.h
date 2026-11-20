@@ -642,9 +642,7 @@ extern int shmget(key_t key, size_t size, int shmflg);
 #include "arpa/inet.h"
 
 /* gnulib-only includes */
-#include "safe-read.h"
-#include "full-read.h"
-#include "full-write.h"
+#include "compat.h"
 
 #if !defined(S_ISCHR) && defined(_S_IFCHR) && defined(_S_IFMT)
 #define S_ISCHR(mode) (((mode) & _S_IFMT) == _S_IFCHR)

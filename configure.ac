@@ -10,11 +10,6 @@ AC_SUBST(PACKAGE)
 
 AMANDA_VERSION
 
-AC_SUBST([GNULIBHEADERS_OVERRIDE_WINT_T], 0)
-
-gl_EARLY
-gl_INIT
-
 LT_INIT
 
 AMANDA_INIT_SUMMARY
@@ -35,7 +30,6 @@ AC_CONFIG_FILES([
     config/Makefile
     device-src/Makefile
     example/Makefile
-    gnulib/Makefile
     installcheck/Makefile
     man/Makefile
     perl/amglue/Makefile

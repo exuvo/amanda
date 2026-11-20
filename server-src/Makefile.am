@@ -9,8 +9,7 @@ AM_CPPFLAGS =	-I$(top_builddir)/common-src \
 		-I$(top_srcdir)/common-src   \
 		-I$(top_srcdir)/amandad-src  \
 		-I$(top_srcdir)/device-src   \
-		-I$(top_srcdir)/xfer-src   \
-		-I$(top_srcdir)/gnulib
+		-I$(top_srcdir)/xfer-src
 
 AM_CFLAGS = $(AMANDA_WARNING_CFLAGS) $(AMANDA_FILE_CFLAGS)
 AM_LDFLAGS = $(AMANDA_STATIC_LDFLAGS) $(AS_NEEDED_FLAGS)

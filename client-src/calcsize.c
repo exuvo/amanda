@@ -36,7 +36,7 @@
 #include "amanda.h"
 #include "match.h"
 #include "conffile.h"
-#include "fsusage.h"
+#include "compat.h"
 #include "am_sl.h"
 #include "amutil.h"
 

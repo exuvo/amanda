@@ -7,8 +7,7 @@ include $(top_srcdir)/config/automake/precompile.am
 
 AM_CPPFLAGS =	-I$(top_builddir)/common-src \
 		-I$(top_srcdir)/common-src   \
-		-I$(top_srcdir)/amandad-src  \
-		-I$(top_srcdir)/gnulib
+		-I$(top_srcdir)/amandad-src
 
 AM_CFLAGS = $(AMANDA_WARNING_CFLAGS) $(AMANDA_FILE_CFLAGS)
 AM_LDFLAGS = $(AMANDA_STATIC_LDFLAGS) $(AS_NEEDED_FLAGS)
@@ -46,8 +45,7 @@ libamclient_la_LIBADD  = ../common-src/libamanda.la
 LDADD = ../common-src/libamanda.la \
 	libamclient.la \
 	../amandad-src/libamandad.la \
-	../common-src/libamanda.la \
-	../gnulib/libgnu.la
+	../common-src/libamanda.la
 
 # these are used for testing only:
 TEST_PROGS = getfsent

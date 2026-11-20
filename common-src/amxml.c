@@ -38,7 +38,7 @@
 #include "match.h"
 #include "glib.h"
 #include "conffile.h"
-#include "base64.h"
+#include "compat.h"
 
 typedef struct amgxml_s {
     dle_t   *dles;

@@ -36,12 +36,11 @@
 #include "clock.h"
 #include "sockaddr-util.h"
 #include "conffile.h"
-#include "base64.h"
+#include "compat.h"
 #include "stream.h"
 #include "pipespawn.h"
 #include <glib.h>
 #include <string.h>
-#include "fsusage.h"
 #include "ammessage.h"
 
 GMutex *priv_mutex = NULL;

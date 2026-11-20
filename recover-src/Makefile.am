@@ -7,8 +7,7 @@ include $(top_srcdir)/config/automake/precompile.am
 AM_CPPFLAGS =	-I$(top_builddir)/common-src \
 		-I$(top_srcdir)/common-src   \
 		-I$(top_srcdir)/client-src   \
-		-I$(top_srcdir)/amandad-src   \
-		-I$(top_srcdir)/gnulib
+		-I$(top_srcdir)/amandad-src
 
 AM_CFLAGS = $(AMANDA_WARNING_CFLAGS) $(AMANDA_FILE_CFLAGS)
 AM_LDFLAGS = $(AMANDA_STATIC_LDFLAGS)

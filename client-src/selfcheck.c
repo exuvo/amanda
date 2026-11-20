@@ -33,7 +33,7 @@
  */
 
 #include "amanda.h"
-#include "fsusage.h"
+#include "compat.h"
 #include "getfsent.h"
 #include "amandates.h"
 #include "clock.h"
@@ -45,7 +45,6 @@
 #include "amandad.h"
 #include "ammessage.h"
 #include "amxml.h"
-#include "base64.h"
 #include "security-file.h"
 
 

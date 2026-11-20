@@ -8,8 +8,7 @@ include $(top_srcdir)/config/automake/precompile.am
 AM_CPPFLAGS =	-I$(top_builddir)/common-src \
 		-I$(top_srcdir)/common-src \
 		-I$(top_srcdir)/client-src \
-		-I$(top_srcdir)/amandad-src \
-		-I$(top_srcdir)/gnulib
+		-I$(top_srcdir)/amandad-src
 
 LINT=$(AMLINT)
 LINTFLAGS=$(AMLINTFLAGS)
@@ -49,8 +48,7 @@ DISTCLEANFILES += config.log
 LDADD = ../common-src/libamanda.la \
 	../client-src/libamclient.la \
 	../amandad-src/libamandad.la \
-	../common-src/libamanda.la \
-	../gnulib/libgnu.la
+	../common-src/libamanda.la
 
 if WANT_SETUID_CLIENT
 INSTALLPERMS_exec = dest=$(applicationdir) chown=root:setuid chmod=04750 \

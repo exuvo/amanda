@@ -22,7 +22,7 @@
 
 #include "amanda.h"
 #include <string.h> /* memset() */
-#include "fsusage.h"
+#include "compat.h"
 #include "amutil.h"
 #include <regex.h>
 

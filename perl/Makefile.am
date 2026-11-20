@@ -22,7 +22,7 @@ AM_CPPFLAGS =  \
             -I$(top_srcdir)/amar-src \
             -I$(top_srcdir)/xfer-src \
             -I$(top_srcdir)/perl/amglue \
-            -I$(top_srcdir)/gnulib \
+            \
             $(PERL_INC)
 
 if WANT_SERVER

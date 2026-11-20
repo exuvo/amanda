@@ -131,8 +131,6 @@ AC_PROG_GCC_TRADITIONAL
 AC_C_CONST
 AC_C_BIGENDIAN
 
-# GCC_COMPILER is needed in the gnulib Makefile to silence errors
-AM_CONDITIONAL([GCC_COMPILER], [test "x$GCC" = "xyes"])
 
 #
 # Warnings

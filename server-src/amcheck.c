@@ -33,7 +33,7 @@
 #include "amanda.h"
 #include "amutil.h"
 #include "conffile.h"
-#include "fsusage.h"
+#include "compat.h"
 #include "diskfile.h"
 #include "tapefile.h"
 #include "packet.h"
@@ -49,7 +49,6 @@
 #include "timestamp.h"
 #include "amxml.h"
 #include "ammessage.h"
-#include "physmem.h"
 #include <getopt.h>
 
 #define BUFFER_SIZE	32768

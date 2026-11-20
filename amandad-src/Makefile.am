@@ -5,8 +5,7 @@ include $(top_srcdir)/config/automake/installperms.am
 include $(top_srcdir)/config/automake/precompile.am
 
 AM_CPPFLAGS =	-I$(top_builddir)/common-src \
-		-I$(top_srcdir)/common-src \
-		-I$(top_srcdir)/gnulib
+		-I$(top_srcdir)/common-src
 
 AM_CFLAGS = $(AMANDA_WARNING_CFLAGS) $(AMANDA_FILE_CFLAGS)
 AM_LDFLAGS = $(AMANDA_STATIC_LDFLAGS) $(AS_NEEDED_FLAGS)
@@ -33,8 +32,7 @@ noinst_HEADERS  = amandad.h
 
 LDADD = ../common-src/libamanda.la \
 	libamandad.la \
-	../common-src/libamanda.la \
-	../gnulib/libgnu.la
+	../common-src/libamanda.la
 
 lint:
 	@ for p in $(amlibexec_PROGRAMS); do					\

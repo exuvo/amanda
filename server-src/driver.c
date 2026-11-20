@@ -45,7 +45,7 @@
 #include "holding.h"
 #include "infofile.h"
 #include "logfile.h"
-#include "fsusage.h"
+#include "compat.h"
 #include "driverio.h"
 #include "server_util.h"
 #include "timestamp.h"

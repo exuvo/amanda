@@ -4,7 +4,7 @@ AUTOMAKE_OPTIONS = 1.10 foreign
 include $(top_srcdir)/config/automake/vars.am
 include $(top_srcdir)/config/automake/installperms.am
 
-ACLOCAL_AMFLAGS = --force -I config -I . -I config/gnulib -I config/amanda -I config/macro-archive -I /usr/share/aclocal
+ACLOCAL_AMFLAGS = --force -I config -I . -I config/amanda -I config/macro-archive -I /usr/share/aclocal
 
 if WANT_CLIENT
 CLIENT_SUBDIRS = client-src application-src
@@ -17,7 +17,6 @@ RECOVER_SUBDIRS = recover-src
 endif
 # order is significant, don't change it arbitrarily
 SUBDIRS = . \
-	gnulib \
 	config \
 	common-src \
 	amar-src \
@@ -97,21 +96,13 @@ endif
 	mkdir ${DESTDIR}/include/server-src
 	mkdir ${DESTDIR}/include/client-src
 	mkdir ${DESTDIR}/include/recover-src
-	mkdir ${DESTDIR}/include/oldrecover-src
 	mkdir ${DESTDIR}/include/amar-src
-	mkdir ${DESTDIR}/include/contrib
-	mkdir ${DESTDIR}/include/contrib/gsc
 	mkdir ${DESTDIR}/include/config
-	mkdir ${DESTDIR}/include/config/snippet
 	mkdir ${DESTDIR}/include/perl
 	mkdir ${DESTDIR}/include/perl/amglue
-	mkdir ${DESTDIR}/include/gnulib
-	mkdir ${DESTDIR}/include/gnulib/arpa
-	mkdir ${DESTDIR}/include/gnulib/glthread
-	mkdir ${DESTDIR}/include/gnulib/sys
 	find . -name '*.h' -exec ${SHELL} -c 'for i; do cp $$i ${DESTDIR}/include/$$i; done' foo {} +
 	mkdir ${DESTDIR}/config
-	cp -fpR config/amanda config/gnulib config/macro-archive ${DESTDIR}/config
+	cp -fpR config/amanda config/macro-archive ${DESTDIR}/config
 	echo "${CONFIGURE_ARGS}" > ${DESTDIR}/configure_args
 
 # ensure that configure gets the right arguments for distcheck; this keeps the
