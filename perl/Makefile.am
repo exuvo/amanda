@@ -281,24 +281,18 @@ if WANT_SERVER
 # PACKAGE: Amanda::Changer::*
 AmandaChangerdir = $(amperldir)/Amanda/Changer
 AmandaChanger_DATA = \
-	Amanda/Changer/aggregate.pm \
 	Amanda/Changer/disk.pm \
 	Amanda/Changer/diskflat.pm \
-	Amanda/Changer/multi.pm \
 	Amanda/Changer/null.pm \
-	Amanda/Changer/rait.pm \
 	Amanda/Changer/robot.pm \
 	Amanda/Changer/single.pm
 
 PM_FILES += $(AmandaChanger_DATA)
 endif
 EXTRA_DIST += \
-	Amanda/Changer/aggregate.pm \
 	Amanda/Changer/disk.pm \
 	Amanda/Changer/diskflat.pm \
-	Amanda/Changer/multi.pm \
 	Amanda/Changer/null.pm \
-	Amanda/Changer/rait.pm \
 	Amanda/Changer/robot.pm \
 	Amanda/Changer/single.pm
 

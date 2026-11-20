@@ -796,9 +796,7 @@ set_tape(
 	if (tapedev != uqtape) {
 	    if((strchr(tapedev+1, ':') == NULL) &&
 	       (strncmp_const(uqtape, "null:") == 0 ||
-		strncmp_const(uqtape, "rait:") == 0 ||
 		strncmp_const(uqtape, "file:") == 0 ||
-		strncmp_const(uqtape, "s3:") == 0 ||
 		strncmp_const(uqtape, "tape:") == 0)) {
 		tapedev = uqtape;
 	    }

@@ -627,41 +627,6 @@ typedef struct {
 } Device;
 
 /* An alternate constructor for RAIT devices */
-%typemap(in) GSList *child_devices {
-    AV *av;
-    int i, len;
-
-    if (!SvROK($input) || SvTYPE(SvRV($input)) != SVt_PVAV) {
-	SWIG_exception(SWIG_TypeError, "Expected an arrayref");
-    }
-    av = (AV *)SvRV($input);
-
-    $1 = NULL;
-    len = av_len(av);
-    for (i = 0; i <= len; i++) {
-	SV **elt = av_fetch(av, i, 0);
-	Device *d;
-
-	if (elt && !SvOK(*elt)) {
-	    $1 = g_slist_append($1, NULL); /* 'undef' => NULL */
-	} else if (!elt || SWIG_ConvertPtr(*elt, (void **)&d, $descriptor(Device *), 0) == -1) {
-	    SWIG_exception(SWIG_TypeError, "array member is not a Device");
-	} else {
-	    $1 = g_slist_append($1, d);
-	}
-    }
-}
-%typemap(freearg) GSList *child_devices {
-    g_slist_free($1);
-}
-%newobject rait_device_open_from_children;
-Device *rait_device_open_from_children(GSList *child_devices);
-%perlcode %{
-sub new_rait_from_children {
-    my $class = shift; # strip the $class from the arguments
-    return rait_device_open_from_children([@_]);
-}
-%}
 
 /*
  * Utilities for installchecks (not described in POD)

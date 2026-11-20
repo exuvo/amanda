@@ -33,11 +33,7 @@
 #include "shm-ring.h" /* For shm_ring_mutex */
 #include "security.h"
 
-#ifdef HAVE_LIBCURL
-#include <curl/curl.h>
-#endif
-
-#if (defined HAVE_LIBCURL && defined LIBCURL_USE_OPENSSL) || defined SSL_SECURITY
+#if defined SSL_SECURITY
 #include <openssl/crypto.h>
 #include <openssl/ssl.h>
 #if (defined OPENSSL_VERSION_NUMBER && OPENSSL_VERSION_NUMBER < 0x10100000L) \
@@ -75,36 +71,15 @@ init_openssl(void)
 
 }
 
-#endif /* LIBCURL_USE_OPENSSL */
+#endif /* SSL_SECURITY */
 
-#if defined HAVE_LIBCURL && defined LIBCURL_USE_GNUTLS_GCRYPT
-
-#include <gcrypt.h>
-#include <errno.h>
-
-GCRY_THREAD_OPTION_PTHREAD_IMPL;
-static void
-init_gnutls_gcrypt(void)
-{
-    gcry_control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
-
-    if (!gcry_check_version (GCRYPT_VERSION)) {
-	g_critical("libgcrypt version mismatch");
-    }
-
-    gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
-}
-#endif /* LIBCURL_USE_GNUTLS_GCRYPT */
 
 static void
 init_ssl(void)
 {
 
-#if (defined HAVE_LIBCURL && defined LIBCURL_USE_OPENSSL) || defined SSL_SECURITY
+#if defined SSL_SECURITY
     init_openssl();
-#endif
-#if defined HAVE_LIBCURL && defined LIBCURL_USE_GNUTLS_GCRYPT
-    init_gnutls_gcrypt();
 #endif
 }
 
@@ -115,17 +90,6 @@ glib_init(void) {
     static gboolean did_glib_init = FALSE;
     if (did_glib_init) return;
     did_glib_init = TRUE;
-
-    /* set up libcurl (this must happen before threading 
-     * is initialized) */
-#ifdef HAVE_LIBCURL
-# ifdef G_THREADS_ENABLED
-    if (glib_major_version < 2 ||
-	(glib_major_version == 2 && glib_minor_version < 31))
-	g_assert(!g_thread_supported()); /* assert threads aren't initialized yet */
-# endif
-    g_assert(curl_global_init(CURL_GLOBAL_ALL) == 0);
-#endif
 
     /* do a version check */
 #if GLIB_CHECK_VERSION(2,6,0)

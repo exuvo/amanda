@@ -353,18 +353,6 @@ sub create_customconf{
 		print CONF "}\n";
 		unless ($tapetype)  {$tapetype="HP-DAT";}
           }
-        else # S3 case
-	  {
-		$tpchanger = "my_s3";
-		print CONF "\n";
-		print CONF "define changer $tpchanger {\n";
-		print CONF "    tpchanger \"chg-multi:$tapedev\"\n";
-		print CONF "    device-property \"S3_ACCESS_KEY\" \"\"\n";
-		print CONF "    device-property \"S3_SECRET_KEY\" \"\"\n";
-		print CONF "    device-property \"NB_THREADS_BACKUP\" \"\"\n";
-		print CONF "}\n";
-	    unless ($tapetype)  {$tapetype="HP-DAT";}
-	  }
 
 	print CONF "dtimeout $def_dtimeout\t# number of idle seconds before a dump is aborted\n";
 	print CONF "ctimeout $def_ctimeout\t# max number of secconds amcheck waits for each client\n";
@@ -530,7 +518,7 @@ if ( defined $template ) {
     # validate user input to template
     chomp($template);
     my $found = 0;
-    @valid_templates = ( "harddisk", "single-tape", "tape-changer", "s3" );
+    @valid_templates = ( "harddisk", "single-tape", "tape-changer" );
     foreach $elt (@valid_templates) {
         if ( $elt eq lc($template) ) {
             $found = 1;
@@ -539,7 +527,7 @@ if ( defined $template ) {
     }
     unless ($found) {
         print STDERR
-            "valid inputs to --templates are harddisk, single-tape, tape-changer or S3\n";
+            "valid inputs to --templates are harddisk, single-tape or tape-changer\n";
         &usage;
         exit 1;
     }
@@ -563,9 +551,6 @@ if ( defined $template ) {
                 "ERROR: Please install mtx and rerun the same command.\n",
                 0 );
         }
-	$need_changer = 1;
-    }
-    elsif ( $template eq "S3" ) {
 	$need_changer = 1;
     }
 

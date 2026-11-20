@@ -6,23 +6,10 @@
 #
 #
 AC_DEFUN([AMANDA_CHECK_DEVICES], [
-    AC_REQUIRE([AMANDA_S3_DEVICE])
     AC_REQUIRE([AMANDA_TAPE_DEVICE])
-    AC_REQUIRE([AMANDA_DVDRW_DEVICE])
 
-    amanda_devices=' file null rait tape'
+    amanda_devices=' file diskflat null tape'
     missing_devices=''
-
-    if test x"$WANT_DVDRW_DEVICE" = x"yes"; then
-	amanda_devices="$amanda_devices dvdrw";
-    else
-	missing_devices="$missing_devices (no dvdrw)";
-    fi
-    if test x"$WANT_S3_DEVICE" = x"yes"; then
-	amanda_devices="$amanda_devices S3";
-    else
-	missing_devices="$missing_devices (no S3)";
-    fi
     AMANDA_DEVICES=$amanda_devices
     AC_SUBST(AMANDA_DEVICES)
 ])

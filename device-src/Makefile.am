@@ -31,7 +31,6 @@ libamdevice_la_SOURCES = \
 	directtcp-connection.c \
 	diskflat-device.c \
 	null-device.c \
-	rait-device.c \
 	vfs-device.c \
 	xfer-source-device.c \
 	xfer-dest-device.c \
@@ -48,27 +47,12 @@ if WANT_TAPE_DEVICE
 libamdevice_la_SOURCES += tape-device.c
 endif
 
-if WANT_S3_DEVICE
-libamdevice_la_SOURCES += s3-device.c s3.c s3-util.c
-endif
-
-if WANT_DVDRW_DEVICE
-libamdevice_la_SOURCES += dvdrw-device.c
-endif
-
 ## automake-style tests
 
 TESTS =
 noinst_PROGRAMS = $(TESTS)
 
 ## activate-devpay
-
-if WANT_S3_DEVICE
-sbin_PROGRAMS += activate-devpay
-activate_devpay_LDADD = \
-	../gnulib/libgnu.la
-activate_devpay_SOURCES = activate-devpay.c
-endif
 
 ## headers
 
@@ -77,9 +61,6 @@ noinst_HEADERS = \
 	directtcp-connection.h \
 	diskflat-device.h \
 	property.h \
-	s3.h \
-	s3-device.h \
-	s3-util.h \
 	xfer-device.h \
 	xfer-dest-taper.h \
 	vfs-device.h

@@ -41,18 +41,11 @@
  */
 
 void    null_device_register    (void);
-void	rait_device_register	(void);
-#ifdef WANT_S3_DEVICE
-void    s3_device_register      (void);
-#endif
 #ifdef WANT_TAPE_DEVICE
 void    tape_device_register    (void);
 #endif
 void    vfs_device_register     (void);
 void    diskflat_device_register (void);
-#ifdef WANT_DVDRW_DEVICE
-void    dvdrw_device_register   (void);
-#endif
 
 /*
  * Registration infrastructure
@@ -74,13 +67,6 @@ void device_api_init(void) {
     diskflat_device_register();
 #ifdef WANT_TAPE_DEVICE
     tape_device_register();
-#endif
-    rait_device_register();
-#ifdef WANT_S3_DEVICE
-    s3_device_register();
-#endif
-#ifdef WANT_DVDRW_DEVICE
-    dvdrw_device_register();
 #endif
 }
 

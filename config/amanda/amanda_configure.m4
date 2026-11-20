@@ -375,8 +375,6 @@ AC_CHECK_FUNCS(sem_timedwait)
 #
 # Devices
 #
-# libcurl must be done at the end.
-#
 AMANDA_CHECK_DEVICES
 
 ])
