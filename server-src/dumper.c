@@ -224,7 +224,7 @@ static void	parse_info_line(char *);
 static int	log_msgout(logtype_t);
 static char *	dumper_get_security_conf (char *, void *);
 
-static int	runcompress(int, pid_t *, comp_t, char *);
+static int	runcompress(int, pid_t *, comp_t, char *, gboolean);
 static int	runencrypt(int, pid_t *,  encrypt_t, char *);
 
 static void	sendbackup_response(void *, pkt_t *, security_handle_t *);
@@ -1146,7 +1146,7 @@ process_dumpline(
 					state_filename_gz, strerror(errno));
 				broken_statefile_in_mesg = TRUE;
 			    } else {
-				if (runcompress(statefile_in_mesg, &statepid, COMP_BEST, "state compress") < 0) {
+				if (runcompress(statefile_in_mesg, &statepid, COMP_BEST, "state compress", FALSE) < 0) {
 				    aclose(statefile_in_mesg);
 				    broken_statefile_in_mesg = TRUE;
 				}
@@ -1595,7 +1595,7 @@ do_dump(
 
     if (streams[INDEXFD].fd != NULL) {
 	if (getconf_boolean(CNF_COMPRESS_INDEX)) {
-	    indexfile_real = getindex_unsorted_gz_fname(hostname, diskname, dumper_timestamp, level);
+	    indexfile_real = getindex_unsorted_zst_fname(hostname, diskname, dumper_timestamp, level);
 	} else {
 	    indexfile_real = getindex_unsorted_fname(hostname, diskname, dumper_timestamp, level);
 	}
@@ -1616,7 +1616,7 @@ do_dump(
                                      indexfile_tmp, strerror(errno));
 	    goto failed;
 	} else if (getconf_boolean(CNF_COMPRESS_INDEX)) {
-	    if (runcompress(indexout, &indexpid, COMP_BEST, "index compress") < 0) {
+	    if (runcompress(indexout, &indexpid, COMP_BEST, "index compress", TRUE) < 0) {
 		aclose(indexout);
 		goto failed;
 	    }
@@ -2150,7 +2150,7 @@ handle_shm_ring_to_fd_thread(
 	     */
 	    if ((srvcompress != COMP_NONE) && (srvcompress != COMP_CUST)) {
 		write_to = "compression program";
-		if (runcompress(db->fd, &db->compresspid, srvcompress, "data compress") < 0) {
+		if (runcompress(db->fd, &db->compresspid, srvcompress, "data compress", FALSE) < 0) {
 		    dump_result = 2;
 		    aclose(db->fd);
 		    stop_dump();
@@ -2390,7 +2390,7 @@ read_statefd(
 		g_debug("Can't open statefile '%s': %s", state_filename_gz,
 					       strerror(errno));
 	    } else {
-		if (runcompress(statefile_in_stream, &statepid, COMP_BEST, "state compress") < 0) {
+		if (runcompress(statefile_in_stream, &statepid, COMP_BEST, "state compress", FALSE) < 0) {
 		    aclose(statefile_in_stream);
 		}
 	    }
@@ -2699,7 +2699,7 @@ read_datafd(
 	 */
 	if ((srvcompress != COMP_NONE) && (srvcompress != COMP_CUST)) {
 	    write_to = "compression program";
-	    if (runcompress(db->fd, &db->compresspid, srvcompress, "data compress") < 0) {
+	    if (runcompress(db->fd, &db->compresspid, srvcompress, "data compress", FALSE) < 0) {
 		dump_result = 2;
 		aclose(db->fd);
 		stop_dump();
@@ -3123,11 +3123,22 @@ runcompress(
     int		outfd,
     pid_t *	pid,
     comp_t	comptype,
-    char       *name)
+    char       *name,
+    gboolean	index_file)	/* compress an index file (zstd) */
 {
     int outpipe[2], rval;
     int errpipe[2];
     filter_t *filter;
+    const char *comp_path;
+    const char *comp_opt;
+
+    if (index_file) {
+	comp_path = INDEX_COMPRESS_PATH;
+	comp_opt = INDEX_COMPRESS_OPT;
+    } else {
+	comp_path = COMPRESS_PATH;
+	comp_opt = (comptype == COMP_BEST) ? COMPRESS_BEST_OPT : COMPRESS_FAST_OPT;
+    }
 
     assert(outfd >= 0);
     assert(pid != NULL);
@@ -3147,8 +3158,7 @@ runcompress(
     }
 
     if (comptype != COMP_SERVER_CUST) {
-	g_debug("execute: %s %s", COMPRESS_PATH,
-		comptype == COMP_BEST ? COMPRESS_BEST_OPT : COMPRESS_FAST_OPT);
+	g_debug("execute: %s %s", comp_path, comp_opt);
     } else {
 	g_debug("execute: %s", srvcompprog);
     }
@@ -3196,14 +3206,13 @@ runcompress(
 	    /*NOTREACHED*/
 	}
 	if (comptype != COMP_SERVER_CUST) {
-	    char *base = g_strdup(COMPRESS_PATH);
+	    char *base = g_strdup(comp_path);
 	    log_add(L_INFO, "%s pid %ld", basename(base), (long)getpid());
 	    amfree(base);
 	    safe_fd(-1, 0);
 	    set_root_privs(-1);
-	    execlp(COMPRESS_PATH, COMPRESS_PATH, (  comptype == COMP_BEST ?
-		COMPRESS_BEST_OPT : COMPRESS_FAST_OPT), (char *)NULL);
-	    g_fprintf(stderr,"error: couldn't exec server compression '%s': %s.\n", COMPRESS_PATH, strerror(errno));
+	    execlp(comp_path, comp_path, comp_opt, (char *)NULL);
+	    g_fprintf(stderr,"error: couldn't exec server compression '%s': %s.\n", comp_path, strerror(errno));
 	    exit(1);
 	    /*NOTREACHED*/
 	} else if (*srvcompprog) {

@@ -93,12 +93,16 @@ getstatefname(
   return buf;
 }
 
-char *
-getindexfname(
-    char *	host,
-    char *	disk,
-    char *	date,
-    int		level)
+/*
+ * Build "<indexdir>/<host>/<disk>/<date>_<level><suffix>".
+ */
+static char *
+index_fname(
+    char       *host,
+    char       *disk,
+    char       *date,
+    int         level,
+    const char *suffix)
 {
   char *conf_indexdir;
   char *buf;
@@ -140,7 +144,7 @@ getindexfname(
 		  host, "/",
 		  disk, "/",
 		  dc, "_",
-		  level_str, COMPRESS_SUFFIX,
+		  level_str, suffix,
 		  NULL);
 
   amfree(conf_indexdir);
@@ -148,6 +152,16 @@ getindexfname(
   amfree(disk);
 
   return buf;
+}
+
+char *
+getindexfname(
+    char *	host,
+    char *	disk,
+    char *	date,
+    int		level)
+{
+    return index_fname(host, disk, date, level, COMPRESS_SUFFIX);
 }
 
 char *
@@ -157,54 +171,7 @@ getindex_unsorted_fname(
     char *	date,
     int		level)
 {
-  char *conf_indexdir;
-  char *buf;
-  char level_str[NUM_STR_SIZE];
-  char datebuf[14 + 1];
-  char *dc = NULL;
-  char *pc;
-  int ch;
-
-  if (date != NULL) {
-    dc = date;
-    pc = datebuf;
-    while (pc < datebuf + sizeof(datebuf)) {
-      ch = *dc++;
-      *pc++ = (char)ch;
-      if (ch == '\0') {
-        break;
-      } else if (! isdigit (ch)) {
-        pc--;
-      }
-    }
-    datebuf[sizeof(datebuf)-1] = '\0';
-    dc = datebuf;
-
-    g_snprintf(level_str, sizeof(level_str), "%d", level);
-  }
-
-  host = sanitise_filename(host);
-  if (disk != NULL) {
-    disk = sanitise_filename(disk);
-  }
-
-  conf_indexdir = config_dir_relative(getconf_str(CNF_INDEXDIR));
-  /*
-   * Note: g_strjoin(NULL, ) will stop at the first NULL, which might be
-   * "disk" or "dc" (datebuf) rather than the full file name.
-   */
-  buf = g_strjoin(NULL, conf_indexdir, "/",
-		  host, "/",
-		  disk, "/",
-		  dc, "_",
-		  level_str, "-unsorted",
-		  NULL);
-
-  amfree(conf_indexdir);
-  amfree(host);
-  amfree(disk);
-
-  return buf;
+    return index_fname(host, disk, date, level, "-unsorted");
 }
 
 char *
@@ -214,54 +181,7 @@ getindex_unsorted_gz_fname(
     char *	date,
     int		level)
 {
-  char *conf_indexdir;
-  char *buf;
-  char level_str[NUM_STR_SIZE];
-  char datebuf[14 + 1];
-  char *dc = NULL;
-  char *pc;
-  int ch;
-
-  if (date != NULL) {
-    dc = date;
-    pc = datebuf;
-    while (pc < datebuf + sizeof(datebuf)) {
-      ch = *dc++;
-      *pc++ = (char)ch;
-      if (ch == '\0') {
-        break;
-      } else if (! isdigit (ch)) {
-        pc--;
-      }
-    }
-    datebuf[sizeof(datebuf)-1] = '\0';
-    dc = datebuf;
-
-    g_snprintf(level_str, sizeof(level_str), "%d", level);
-  }
-
-  host = sanitise_filename(host);
-  if (disk != NULL) {
-    disk = sanitise_filename(disk);
-  }
-
-  conf_indexdir = config_dir_relative(getconf_str(CNF_INDEXDIR));
-  /*
-   * Note: g_strjoin(NULL, ) will stop at the first NULL, which might be
-   * "disk" or "dc" (datebuf) rather than the full file name.
-   */
-  buf = g_strjoin(NULL, conf_indexdir, "/",
-		  host, "/",
-		  disk, "/",
-		  dc, "_",
-		  level_str, "-unsorted", COMPRESS_SUFFIX,
-		  NULL);
-
-  amfree(conf_indexdir);
-  amfree(host);
-  amfree(disk);
-
-  return buf;
+    return index_fname(host, disk, date, level, "-unsorted" COMPRESS_SUFFIX);
 }
 
 char *
@@ -271,54 +191,7 @@ getindex_sorted_fname(
     char *	date,
     int		level)
 {
-  char *conf_indexdir;
-  char *buf;
-  char level_str[NUM_STR_SIZE];
-  char datebuf[14 + 1];
-  char *dc = NULL;
-  char *pc;
-  int ch;
-
-  if (date != NULL) {
-    dc = date;
-    pc = datebuf;
-    while (pc < datebuf + sizeof(datebuf)) {
-      ch = *dc++;
-      *pc++ = (char)ch;
-      if (ch == '\0') {
-        break;
-      } else if (! isdigit (ch)) {
-        pc--;
-      }
-    }
-    datebuf[sizeof(datebuf)-1] = '\0';
-    dc = datebuf;
-
-    g_snprintf(level_str, sizeof(level_str), "%d", level);
-  }
-
-  host = sanitise_filename(host);
-  if (disk != NULL) {
-    disk = sanitise_filename(disk);
-  }
-
-  conf_indexdir = config_dir_relative(getconf_str(CNF_INDEXDIR));
-  /*
-   * Note: g_strjoin(NULL, ) will stop at the first NULL, which might be
-   * "disk" or "dc" (datebuf) rather than the full file name.
-   */
-  buf = g_strjoin(NULL, conf_indexdir, "/",
-		  host, "/",
-		  disk, "/",
-		  dc, "_",
-		  level_str, "-sorted",
-		  NULL);
-
-  amfree(conf_indexdir);
-  amfree(host);
-  amfree(disk);
-
-  return buf;
+    return index_fname(host, disk, date, level, "-sorted");
 }
 
 char *
@@ -328,54 +201,50 @@ getindex_sorted_gz_fname(
     char *	date,
     int		level)
 {
-  char *conf_indexdir;
-  char *buf;
-  char level_str[NUM_STR_SIZE];
-  char datebuf[14 + 1];
-  char *dc = NULL;
-  char *pc;
-  int ch;
+    return index_fname(host, disk, date, level, "-sorted" COMPRESS_SUFFIX);
+}
 
-  if (date != NULL) {
-    dc = date;
-    pc = datebuf;
-    while (pc < datebuf + sizeof(datebuf)) {
-      ch = *dc++;
-      *pc++ = (char)ch;
-      if (ch == '\0') {
-        break;
-      } else if (! isdigit (ch)) {
-        pc--;
-      }
-    }
-    datebuf[sizeof(datebuf)-1] = '\0';
-    dc = datebuf;
+/* index files are written compressed with INDEX_COMPRESS_PATH (zstd) */
+char *
+getindex_unsorted_zst_fname(
+    char *	host,
+    char *	disk,
+    char *	date,
+    int		level)
+{
+    return index_fname(host, disk, date, level, "-unsorted" INDEX_COMPRESS_SUFFIX);
+}
 
-    g_snprintf(level_str, sizeof(level_str), "%d", level);
-  }
+char *
+getindex_sorted_zst_fname(
+    char *	host,
+    char *	disk,
+    char *	date,
+    int		level)
+{
+    return index_fname(host, disk, date, level, "-sorted" INDEX_COMPRESS_SUFFIX);
+}
 
-  host = sanitise_filename(host);
-  if (disk != NULL) {
-    disk = sanitise_filename(disk);
-  }
+/*
+ * Program and option to uncompress an index file to stdout, chosen by its
+ * suffix, so gzip-compressed indexes from older versions stay readable.
+ */
+const char *
+index_uncompress_path(
+    const char *filename)
+{
+    if (g_str_has_suffix(filename, INDEX_COMPRESS_SUFFIX))
+	return INDEX_UNCOMPRESS_PATH;
+    return UNCOMPRESS_PATH;
+}
 
-  conf_indexdir = config_dir_relative(getconf_str(CNF_INDEXDIR));
-  /*
-   * Note: g_strjoin(NULL, ) will stop at the first NULL, which might be
-   * "disk" or "dc" (datebuf) rather than the full file name.
-   */
-  buf = g_strjoin(NULL, conf_indexdir, "/",
-		  host, "/",
-		  disk, "/",
-		  dc, "_",
-		  level_str, "-sorted", COMPRESS_SUFFIX,
-		  NULL);
-
-  amfree(conf_indexdir);
-  amfree(host);
-  amfree(disk);
-
-  return buf;
+const char *
+index_uncompress_opt(
+    const char *filename)
+{
+    if (g_str_has_suffix(filename, INDEX_COMPRESS_SUFFIX))
+	return INDEX_UNCOMPRESS_OPT;
+    return UNCOMPRESS_OPT;
 }
 
 char *

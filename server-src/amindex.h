@@ -43,6 +43,10 @@ char *getindex_unsorted_fname(char *host, char *disk, char *date, int level);
 char *getindex_unsorted_gz_fname(char *host, char *disk, char *date, int level);
 char *getindex_sorted_fname(char *host, char *disk, char *date, int level);
 char *getindex_sorted_gz_fname(char *host, char *disk, char *date, int level);
+char *getindex_unsorted_zst_fname(char *host, char *disk, char *date, int level);
+char *getindex_sorted_zst_fname(char *host, char *disk, char *date, int level);
+const char *index_uncompress_path(const char *filename);
+const char *index_uncompress_opt(const char *filename);
 char *getheaderfname(char *host, char *disk, char *date, int level);
 char *getoldindexfname(char *host, char *disk, char *date, int level);
 

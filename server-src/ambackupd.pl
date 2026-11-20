@@ -636,7 +636,7 @@ sub do_backup {
 	my $xfer_compress_index;
 	if ($index) {
 	    if (getconf($CNF_COMPRESS_INDEX)) {
-		$self->{'index_filename'} = Amanda::Logfile::getindex_unsorted_gz_fname(
+		$self->{'index_filename'} = Amanda::Logfile::getindex_unsorted_zst_fname(
 						$self->{'hostname'},
 						$self->{'diskname'},
 						$self->{'timestamp'},
@@ -655,8 +655,8 @@ sub do_backup {
 	    $xfer_dest_index = Amanda::Xfer::Dest::Fd->new(fileno(INDEX));
 	    if (getconf($CNF_COMPRESS_INDEX)) {
 		$xfer_compress_index = Amanda::Xfer::Filter::Process->new(
-			[$Amanda::Constants::COMPRESS_PATH,
-			 $Amanda::Constants::COMPRESS_BEST_OPT],
+			[$Amanda::Constants::INDEX_COMPRESS_PATH,
+			 $Amanda::Constants::INDEX_COMPRESS_OPT],
 			 0, 0, 0, 0);
 		$xfer_index = Amanda::Xfer->new([$xfer_src_index, $xfer_compress_index, $xfer_dest_index]);
 	    } else {

@@ -185,49 +185,35 @@ sub get_index_handle() {
     my $filename;
     my $need_uncompress;
     my $need_sort;
-    $filename = Amanda::Logfile::getindex_sorted_fname($params{'host'},
-						       $params{'disk'},
-						       $params{'datestamp'},
-						       0+$params{'level'});
-    if (-f $filename) {
-    } else {
-	$filename = Amanda::Logfile::getindex_sorted_gz_fname(
-				$params{'host'},
-				$params{'disk'},
-				$params{'datestamp'},
-				0+$params{'level'});
-	if (-f $filename) {
-	    $need_uncompress = 1;
-	} else {
-	    $filename = Amanda::Logfile::getindex_unsorted_fname(
-				$params{'host'},
-				$params{'disk'},
-				$params{'datestamp'},
-				0+$params{'level'});
-	    if (-f $filename) {
-		$need_sort = 1;
-	    } else {
-		$filename = Amanda::Logfile::getindex_unsorted_gz_fname(
-				$params{'host'},
-				$params{'disk'},
-				$params{'datestamp'},
-				0+$params{'level'});
-		if (-f $filename) {
-		    $need_uncompress = 1;
-		    $need_sort = 1;
-		} else {
-		    $filename = Amanda::Logfile::getindexfname(
-				$params{'host'},
-				$params{'disk'},
-				$params{'datestamp'},
-				0+$params{'level'});
-		    if (-f $filename) {
-			$need_uncompress = 1;
-			$need_sort = 1;
-		    }
-		}
-	    }
+    # plain files first, then zstd, then gzip from older versions
+    my @candidates = (
+	[ \&Amanda::Logfile::getindex_sorted_fname,       undef, undef ],
+	[ \&Amanda::Logfile::getindex_sorted_zst_fname,   1,     undef ],
+	[ \&Amanda::Logfile::getindex_sorted_gz_fname,    1,     undef ],
+	[ \&Amanda::Logfile::getindex_unsorted_fname,     undef, 1     ],
+	[ \&Amanda::Logfile::getindex_unsorted_zst_fname, 1,     1     ],
+	[ \&Amanda::Logfile::getindex_unsorted_gz_fname,  1,     1     ],
+	[ \&Amanda::Logfile::getindexfname,               1,     1     ],
+    );
+    foreach my $c (@candidates) {
+	my $f = $c->[0]->($params{'host'}, $params{'disk'},
+			  $params{'datestamp'}, 0+$params{'level'});
+	if (-f $f) {
+	    $filename = $f;
+	    $need_uncompress = $c->[1];
+	    $need_sort = $c->[2];
+	    last;
 	}
+    }
+    return undef if !defined $filename;
+
+    # zstd for current indexes, gzip for ones from older versions
+    my ($uncompress_path, $uncompress_opt) =
+	($Amanda::Constants::UNCOMPRESS_PATH, $Amanda::Constants::UNCOMPRESS_OPT);
+    if ($filename =~ /\Q$Amanda::Constants::INDEX_COMPRESS_SUFFIX\E$/) {
+	($uncompress_path, $uncompress_opt) =
+	    ($Amanda::Constants::INDEX_UNCOMPRESS_PATH,
+	     $Amanda::Constants::INDEX_UNCOMPRESS_OPT);
     }
 
     if (!defined $need_uncompress && !defined $need_sort) {
@@ -239,16 +225,13 @@ sub get_index_handle() {
 	#$pid_uc = open2($h1, undef, $Amanda::Constants::UNCOMPRESS_PATH,
 	#			 $Amanda::Constants::UNCOMPRESS_OPT,
 	#			 $filename);
-	open my $h1, "-|", $Amanda::Constants::UNCOMPRESS_PATH,
-			   $Amanda::Constants::UNCOMPRESS_OPT,
-			   $filename;
+	open my $h1, "-|", $uncompress_path, $uncompress_opt, $filename;
 	return $h1;
     }
 
     my $h1;
     if (defined $need_uncompress) {
-	$pid_uc = open2(\*AAAA, undef, $Amanda::Constants::UNCOMPRESS_PATH,
-				 $Amanda::Constants::UNCOMPRESS_OPT,
+	$pid_uc = open2(\*AAAA, undef, $uncompress_path, $uncompress_opt,
 				 $filename);
     } else {
 	open (AAAA, "<", $filename) or die("AAAAA");
@@ -279,6 +262,7 @@ sub get_index() {
     my $self = shift;
 
     my $handle = $self->get_index_handle(@_);
+    return undef if !defined $handle;
     my $buffer;
     {
 	local $/;

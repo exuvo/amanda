@@ -42,6 +42,9 @@
 #include "amindex.h"
 #include "pipespawn.h"
 
+/* FALSE when zstd is unavailable and index files fall back to gzip */
+#define INDEX_SUFFIX_DIFFERS (strcmp(INDEX_COMPRESS_SUFFIX, COMPRESS_SUFFIX) != 0)
+
 typedef struct inames {
     gboolean header;
     gboolean index_gz;
@@ -49,6 +52,8 @@ typedef struct inames {
     gboolean index_sorted_gz;
     gboolean index_unsorted;
     gboolean index_unsorted_gz;
+    gboolean index_sorted_zst;
+    gboolean index_unsorted_zst;
     gboolean state_gz;
 } inames;
 
@@ -320,6 +325,10 @@ main(
 		    iname->index_unsorted = TRUE;
 		} else if (strcmp(n, "unsorted.gz") == 0) {
 		    iname->index_unsorted_gz = TRUE;
+		} else if (strcmp(n, "sorted" INDEX_COMPRESS_SUFFIX) == 0) {
+		    iname->index_sorted_zst = TRUE;
+		} else if (strcmp(n, "unsorted" INDEX_COMPRESS_SUFFIX) == 0) {
+		    iname->index_unsorted_zst = TRUE;
 		} else if (strcmp(n, "state.gz") == 0) {
 		    iname->state_gz = TRUE;
 		} else {
@@ -460,6 +469,38 @@ main(
 			amfree(filepath);
 		    }
 
+		    if (iname && iname->index_sorted_zst) {
+			char *filepath = g_strconcat(path, "-sorted" INDEX_COMPRESS_SUFFIX, NULL);
+			if (lstat(filepath, &sbuf) != -1 &&
+			    ((sbuf.st_mode & S_IFMT) == S_IFREG) &&
+			    ((time_t)sbuf.st_mtime < tmp_time)) {
+			    char *qfilepath = quote_string(filepath);
+			    g_debug("rm %s", qfilepath);
+		            if(amtrmidx_debug == 0 && unlink(filepath) == -1) {
+				g_debug("Error removing %s: %s",
+					 qfilepath, strerror(errno));
+			    }
+			    amfree(qfilepath);
+		        }
+			amfree(filepath);
+		    }
+
+		    if (iname && iname->index_unsorted_zst) {
+			char *filepath = g_strconcat(path, "-unsorted" INDEX_COMPRESS_SUFFIX, NULL);
+			if (lstat(filepath, &sbuf) != -1 &&
+			    ((sbuf.st_mode & S_IFMT) == S_IFREG) &&
+			    ((time_t)sbuf.st_mtime < tmp_time)) {
+			    char *qfilepath = quote_string(filepath);
+			    g_debug("rm %s", qfilepath);
+		            if(amtrmidx_debug == 0 && unlink(filepath) == -1) {
+				g_debug("Error removing %s: %s",
+					 qfilepath, strerror(errno));
+			    }
+			    amfree(qfilepath);
+		        }
+			amfree(filepath);
+		    }
+
 		    if (iname && iname->index_unsorted) {
 			char *filepath = g_strconcat(path, "-unsorted", NULL);
 			if (lstat(filepath, &sbuf) != -1 &&
@@ -501,12 +542,23 @@ main(
 		char *sorted_gz_name = getindex_sorted_gz_fname(host, disk, datestamp, level);
 		char *unsorted_name = getindex_unsorted_fname(host, disk, datestamp, level);
 		char *unsorted_gz_name = getindex_unsorted_gz_fname(host, disk, datestamp, level);
+		char *sorted_zst_name = getindex_sorted_zst_fname(host, disk, datestamp, level);
+		char *unsorted_zst_name = getindex_unsorted_zst_fname(host, disk, datestamp, level);
+		char *sorted_c_name;
+		char *unsorted_c_name;
+		char *source_name = NULL;
+		char *dest_name = NULL;
+		gboolean ok = TRUE;
 
 		gboolean orig_exist = FALSE;
 		gboolean sorted_exist = FALSE;
 		gboolean sorted_gz_exist = FALSE;
 		gboolean unsorted_exist = FALSE;
 		gboolean unsorted_gz_exist = FALSE;
+		gboolean sorted_zst_exist = FALSE;
+		gboolean unsorted_zst_exist = FALSE;
+		gboolean sorted_c_exist;
+		gboolean unsorted_c_exist;
 
 		int fd;
 		int uncompress_err_fd = -1;
@@ -524,145 +576,185 @@ main(
 		    sorted_gz_exist = iname->index_sorted_gz;
 		    unsorted_exist = iname->index_unsorted;
 		    unsorted_gz_exist = iname->index_unsorted_gz;
+		    sorted_zst_exist = iname->index_sorted_zst;
+		    unsorted_zst_exist = iname->index_unsorted_zst;
 		} else {
 		    orig_exist = file_exists(orig_name);
 		    sorted_exist = file_exists(sorted_name);
 		    sorted_gz_exist = file_exists(sorted_gz_name);
 		    unsorted_exist = file_exists(unsorted_name);
 		    unsorted_gz_exist = file_exists(unsorted_gz_name);
+		    sorted_zst_exist = file_exists(sorted_zst_name);
+		    unsorted_zst_exist = file_exists(unsorted_zst_name);
 		}
 
+		/*
+		 * New compressed indexes are written with INDEX_COMPRESS_PATH
+		 * (.zst); gzip-compressed (.gz) ones from older versions are
+		 * still accepted as input and left in place.
+		 */
+		if (!INDEX_SUFFIX_DIFFERS) {
+		    /* no zstd: the .zst names are the .gz names */
+		    sorted_zst_exist = sorted_zst_exist || sorted_gz_exist;
+		    unsorted_zst_exist = unsorted_zst_exist || unsorted_gz_exist;
+		    sorted_gz_exist = FALSE;
+		    unsorted_gz_exist = FALSE;
+		}
+		sorted_c_exist = sorted_zst_exist || sorted_gz_exist;
+		unsorted_c_exist = unsorted_zst_exist || unsorted_gz_exist;
+		sorted_c_name = sorted_zst_exist ? sorted_zst_name : sorted_gz_name;
+		unsorted_c_name = unsorted_zst_exist ? unsorted_zst_name : unsorted_gz_name;
+
 		if (sort_index && compress_index) {
-		    if (!sorted_gz_exist) {
+		    if (!sorted_c_exist) {
+			dest_name = sorted_zst_name;
 			if (sorted_exist) {
 			    // COMPRESS
-			    compress_pid = run_compress(-1, NULL, &compress_err_fd, sorted_name, sorted_gz_name);
-			    unlink(sorted_name);
+			    compress_pid = run_compress(-1, NULL, &compress_err_fd, sorted_name, dest_name);
+			    source_name = sorted_name;
 			} else if (unsorted_exist) {
 			    // SORT AND COMPRESS
 			    sort_pid = run_sort(-1, &fd, &sort_err_fd, unsorted_name, NULL);
-			    compress_pid = run_compress(fd, NULL, &compress_err_fd, NULL, sorted_gz_name);
-			    unlink(unsorted_name);
-			} else if (unsorted_gz_exist) {
+			    compress_pid = run_compress(fd, NULL, &compress_err_fd, NULL, dest_name);
+			    source_name = unsorted_name;
+			} else if (unsorted_c_exist || orig_exist) {
 			    // UNCOMPRESS SORT AND COMPRESS
-			    uncompress_pid = run_uncompress(-1, &fd, &uncompress_err_fd, unsorted_gz_name, NULL);
+			    source_name = unsorted_c_exist ? unsorted_c_name : orig_name;
+			    uncompress_pid = run_uncompress(-1, &fd, &uncompress_err_fd, source_name, NULL);
 			    sort_pid = run_sort(fd, &fd, &sort_err_fd, NULL, NULL);
-			    compress_pid = run_compress(fd, NULL, &compress_err_fd, NULL, sorted_gz_name);
-			    unlink(unsorted_gz_name);
-			} else if (orig_exist) {
-			    // UNCOMPRESS SORT AND COMPRESS
-			    uncompress_pid = run_uncompress(-1, &fd, &uncompress_err_fd, orig_name, NULL);
-			    sort_pid = run_sort(fd, &fd, &sort_err_fd, NULL, NULL);
-			    compress_pid = run_compress(fd, NULL, &compress_err_fd, NULL, sorted_gz_name);
-			    unlink(orig_name);
+			    compress_pid = run_compress(fd, NULL, &compress_err_fd, NULL, dest_name);
 			}
 		    } else {
-			if (sorted_exist) {
+			if (sorted_exist)
 			    unlink(sorted_name);
-			}
-			if (unsorted_exist) {
+			if (unsorted_exist)
 			    unlink(unsorted_name);
-			}
-			if (unsorted_gz_exist) {
+			if (unsorted_zst_exist)
+			    unlink(unsorted_zst_name);
+			if (unsorted_gz_exist)
 			    unlink(unsorted_gz_name);
-			}
+			if (sorted_zst_exist && sorted_gz_exist)
+			    unlink(sorted_gz_name);
 		    }
 		} else if (sort_index && !compress_index) {
 		    if (!sorted_exist) {
-			if (sorted_gz_exist) {
+			dest_name = sorted_name;
+			if (sorted_c_exist) {
 			    // UNCOMPRESS
-			    uncompress_pid = run_uncompress(-1, NULL, &uncompress_err_fd, sorted_gz_name, sorted_name);
-			    unlink(sorted_gz_name);
+			    uncompress_pid = run_uncompress(-1, NULL, &uncompress_err_fd, sorted_c_name, dest_name);
+			    source_name = sorted_c_name;
 			} else if (unsorted_exist) {
 			    // SORT
-			    sort_pid = run_sort(-1, NULL, &sort_err_fd, unsorted_name, sorted_name);
-			    unlink(unsorted_name);
-			} else if (unsorted_gz_exist) {
+			    sort_pid = run_sort(-1, NULL, &sort_err_fd, unsorted_name, dest_name);
+			    source_name = unsorted_name;
+			} else if (unsorted_c_exist || orig_exist) {
 			    // UNCOMPRESS AND SORT
-			    uncompress_pid = run_uncompress(-1, &fd, &uncompress_err_fd, unsorted_gz_name, NULL);
-			    sort_pid = run_sort(fd, NULL, &sort_err_fd, NULL, sorted_name);
-			    unlink(unsorted_gz_name);
-			} else if (orig_exist) {
-			    // UNCOMPRESS AND SORT
-			    uncompress_pid = run_uncompress(-1, &fd, &uncompress_err_fd, orig_name, NULL);
-			    sort_pid = run_sort(fd, NULL, &sort_err_fd, NULL, sorted_name);
-			    unlink(orig_name);
+			    source_name = unsorted_c_exist ? unsorted_c_name : orig_name;
+			    uncompress_pid = run_uncompress(-1, &fd, &uncompress_err_fd, source_name, NULL);
+			    sort_pid = run_sort(fd, NULL, &sort_err_fd, NULL, dest_name);
 			}
 		    } else {
-			if (sorted_gz_exist) {
+			if (sorted_zst_exist)
+			    unlink(sorted_zst_name);
+			if (sorted_gz_exist)
 			    unlink(sorted_gz_name);
-			}
-			if (unsorted_exist) {
+			if (unsorted_exist)
 			    unlink(unsorted_name);
-			}
-			if (unsorted_gz_exist) {
+			if (unsorted_zst_exist)
+			    unlink(unsorted_zst_name);
+			if (unsorted_gz_exist)
 			    unlink(unsorted_gz_name);
-			}
 		    }
 		} else if (!sort_index && compress_index) {
-		    if (!sorted_gz_exist && !unsorted_gz_exist) {
+		    if (!sorted_c_exist && !unsorted_c_exist) {
 			if (sorted_exist) {
 			    // COMPRESS sorted
-			    compress_pid = run_compress(-1, NULL, &compress_err_fd, sorted_name, sorted_gz_name);
-			    unlink(sorted_name);
+			    dest_name = sorted_zst_name;
+			    compress_pid = run_compress(-1, NULL, &compress_err_fd, sorted_name, dest_name);
+			    source_name = sorted_name;
 			} else if (unsorted_exist) {
 			    // COMPRESS unsorted
-			    compress_pid = run_compress(-1, NULL, &compress_err_fd, unsorted_name, unsorted_gz_name);
-			    unlink(unsorted_name);
+			    dest_name = unsorted_zst_name;
+			    compress_pid = run_compress(-1, NULL, &compress_err_fd, unsorted_name, dest_name);
+			    source_name = unsorted_name;
 			} else if (orig_exist) {
-			    // RENAME orig
+			    // RENAME orig (it is gzip-compressed)
 			    rename(orig_name, unsorted_gz_name);
 			}
 		    } else {
-			if (sorted_exist) {
+			if (sorted_exist)
 			    unlink(sorted_name);
-			}
-			if (unsorted_exist) {
+			if (unsorted_exist)
 			    unlink(unsorted_name);
-			}
-			if (sorted_gz_exist && unsorted_gz_exist) {
+			if (sorted_c_exist) {
+			    if (unsorted_zst_exist)
+				unlink(unsorted_zst_name);
+			    if (unsorted_gz_exist)
+				unlink(unsorted_gz_name);
+			} else if (unsorted_zst_exist && unsorted_gz_exist) {
 			    unlink(unsorted_gz_name);
 			}
+			if (sorted_zst_exist && sorted_gz_exist)
+			    unlink(sorted_gz_name);
 		    }
 		} else if (!sort_index && !compress_index) {
 		    if (!sorted_exist && !unsorted_exist) {
-			if (sorted_gz_exist) {
+			if (sorted_c_exist) {
 			    // UNCOMPRESS sorted
-			    uncompress_pid = run_uncompress(-1, NULL, &uncompress_err_fd, sorted_gz_name, sorted_name);
-			    unlink(sorted_gz_name);
-			} else if (unsorted_gz_exist) {
+			    dest_name = sorted_name;
+			    source_name = sorted_c_name;
+			} else if (unsorted_c_exist) {
 			    // UNCOMPRESS unsorted
-			    uncompress_pid = run_uncompress(-1, NULL, &uncompress_err_fd, unsorted_gz_name, unsorted_name);
-			    unlink(unsorted_gz_name);
+			    dest_name = unsorted_name;
+			    source_name = unsorted_c_name;
 			} else if (orig_exist) {
 			    // UNCOMPRESS orig
-			    uncompress_pid = run_uncompress(-1, NULL, &uncompress_err_fd, orig_name, unsorted_name);
-			    unlink(orig_name);
+			    dest_name = unsorted_name;
+			    source_name = orig_name;
 			}
+			if (source_name)
+			    uncompress_pid = run_uncompress(-1, NULL, &uncompress_err_fd, source_name, dest_name);
 		    } else {
-			if (sorted_gz_exist) {
+			if (sorted_zst_exist)
+			    unlink(sorted_zst_name);
+			if (sorted_gz_exist)
 			    unlink(sorted_gz_name);
-			}
-			if (unsorted_gz_exist) {
+			if (unsorted_zst_exist)
+			    unlink(unsorted_zst_name);
+			if (unsorted_gz_exist)
 			    unlink(unsorted_gz_name);
-			}
-			if (sorted_exist && unsorted_exist) {
+			if (sorted_exist && unsorted_exist)
 			    unlink(unsorted_name);
-			}
 		    }
 		}
-		    if (uncompress_pid != -1)
-			wait_process(uncompress_pid, uncompress_err_fd, "uncompress");
-		    if (sort_pid != -1)
-			wait_process(sort_pid, sort_err_fd, "sort");
-		    if (compress_pid != -1)
-			wait_process(compress_pid, compress_err_fd, "compress");
+		    if (uncompress_pid != -1 &&
+			!wait_process(uncompress_pid, uncompress_err_fd, "uncompress"))
+			ok = FALSE;
+		    if (sort_pid != -1 &&
+			!wait_process(sort_pid, sort_err_fd, "sort"))
+			ok = FALSE;
+		    if (compress_pid != -1 &&
+			!wait_process(compress_pid, compress_err_fd, "compress"))
+			ok = FALSE;
+
+		    /* replace the source only once the new file is complete */
+		    if (source_name && dest_name) {
+			if (ok) {
+			    unlink(source_name);
+			} else {
+			    g_debug("keeping %s, could not create %s",
+				    source_name, dest_name);
+			    unlink(dest_name);
+			}
+		    }
 
 		    g_free(orig_name);
 		    g_free(sorted_name);
 		    g_free(sorted_gz_name);
+		    g_free(sorted_zst_name);
 		    g_free(unsorted_name);
 		    g_free(unsorted_gz_name);
+		    g_free(unsorted_zst_name);
 		}
 
 		amfree(datestamp);
@@ -728,14 +820,14 @@ run_compress(
     }
 
     if (dest_filename) {
-	out_fd = open(dest_filename, O_WRONLY|O_CREAT, S_IRUSR);
+	out_fd = open(dest_filename, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR);
     } else {
 	create_pipe |= STDOUT_PIPE;
     }
 
-    pid = pipespawn(COMPRESS_PATH, create_pipe, 0,
+    pid = pipespawn(INDEX_COMPRESS_PATH, create_pipe, 0,
 		    &in_fd, &out_fd, fd_err,
-		    COMPRESS_PATH, COMPRESS_BEST_OPT, NULL);
+		    INDEX_COMPRESS_PATH, INDEX_COMPRESS_OPT, NULL);
     close(in_fd);
     if (dest_filename) {
 	close(out_fd);
@@ -765,14 +857,16 @@ run_uncompress(
     }
 
     if (dest_filename) {
-	out_fd = open(dest_filename, O_WRONLY|O_CREAT, S_IRUSR);
+	out_fd = open(dest_filename, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR);
     } else {
 	create_pipe |= STDOUT_PIPE;
     }
 
-    pid = pipespawn(UNCOMPRESS_PATH, create_pipe, 0,
+    /* zstd for current indexes, gzip for ones from older versions */
+    pid = pipespawn((char *)index_uncompress_path(source_filename), create_pipe, 0,
 		    &in_fd, &out_fd, fd_err,
-		    UNCOMPRESS_PATH, UNCOMPRESS_OPT, NULL);
+		    index_uncompress_path(source_filename),
+		    index_uncompress_opt(source_filename), NULL);
     close(in_fd);
     if (dest_filename) {
 	close(out_fd);
@@ -803,7 +897,7 @@ run_sort(
     }
 
     if (dest_filename) {
-	out_fd = open(dest_filename, O_WRONLY|O_CREAT, S_IRUSR);
+	out_fd = open(dest_filename, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR);
     } else {
 	create_pipe |= STDOUT_PIPE;
     }

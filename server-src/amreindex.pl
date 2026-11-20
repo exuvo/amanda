@@ -516,10 +516,16 @@ sub main {
 	}
 
 	# unlink all possible index files for this dump.
-	my $index_filename_gz = Amanda::Logfile::getindex_unsorted_gz_fname(
+	unlink Amanda::Logfile::getindex_unsorted_gz_fname(
 		$current_dump->{hostname}, $current_dump->{diskname},
 		$current_dump->{dump_timestamp}, $current_dump->{level});
-	unlink $index_filename_gz;
+	unlink Amanda::Logfile::getindex_sorted_zst_fname(
+		$current_dump->{hostname}, $current_dump->{diskname},
+		$current_dump->{dump_timestamp}, $current_dump->{level});
+	my $index_filename_zst = Amanda::Logfile::getindex_unsorted_zst_fname(
+		$current_dump->{hostname}, $current_dump->{diskname},
+		$current_dump->{dump_timestamp}, $current_dump->{level});
+	unlink $index_filename_zst;
 	my $index_filename = Amanda::Logfile::getindex_unsorted_fname(
 		$current_dump->{hostname}, $current_dump->{diskname},
 		$current_dump->{dump_timestamp}, $current_dump->{level});
@@ -534,11 +540,11 @@ sub main {
 	# send stdout to the index file
 	if (getconf($CNF_COMPRESS_INDEX)) {
 	    my $index_file;
-	    open($index_file, ">", $index_filename_gz);
+	    open($index_file, ">", $index_filename_zst);
 	    push @filters,
 		Amanda::Xfer::Filter::Process->new(
-			[ $Amanda::Constants::COMPRESS_PATH,
-			  $Amanda::Constants::COMPRESS_BEST_OPT ], 0, 0, 0, 0);
+			[ $Amanda::Constants::INDEX_COMPRESS_PATH,
+			  $Amanda::Constants::INDEX_COMPRESS_OPT ], 0, 0, 0, 0);
 
 	    $xfer_dest = Amanda::Xfer::Dest::Fd->new(fileno($index_file));
 	    close($index_file);

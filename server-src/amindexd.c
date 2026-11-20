@@ -203,22 +203,54 @@ compress_files(
 {
     REMOVE_ITEM *prev;
     pid_t        pid;
+    int          status;
+    int          in_fd, out_fd;
+    char        *dest, *tmp;
 
     if (file_lock_locked(lock_index)) {
 	while(compress) {
 	    dbprintf(_("compressing index file: %s\n"), compress->filename);
 
-	    switch (pid = fork()) {
-	    case -1:
-		error("error: couldn't fork: %s", strerror(errno));
-	    case 0:
-		execlp(COMPRESS_PATH, COMPRESS_PATH, COMPRESS_BEST_OPT, compress->filename, NULL);
-		error("error: couldn't exec %s: %s", COMPRESS_PATH, strerror(errno));
-		/*NOTREACHED*/
-	    default:
-		break;
+	    /* <file> -> <file>.zst via a temporary name; the source is
+	     * removed only once the compressed file is in place */
+	    dest = g_strconcat(compress->filename, INDEX_COMPRESS_SUFFIX, NULL);
+	    tmp = g_strconcat(dest, ".tmp", NULL);
+	    in_fd = open(compress->filename, O_RDONLY);
+	    out_fd = open(tmp, O_WRONLY|O_CREAT|O_TRUNC, 0600);
+	    if (in_fd == -1 || out_fd == -1) {
+		dbprintf("can't compress %s: %s\n", compress->filename,
+			 strerror(errno));
+	    } else {
+		switch (pid = fork()) {
+		case -1:
+		    error("error: couldn't fork: %s", strerror(errno));
+		    /*NOTREACHED*/
+		case 0:
+		    if (dup2(in_fd, 0) == -1 || dup2(out_fd, 1) == -1)
+			exit(1);
+		    execlp(INDEX_COMPRESS_PATH, INDEX_COMPRESS_PATH,
+			   INDEX_COMPRESS_OPT, (char *)NULL);
+		    error("error: couldn't exec %s: %s", INDEX_COMPRESS_PATH,
+			  strerror(errno));
+		    /*NOTREACHED*/
+		default:
+		    break;
+		}
+		if (waitpid(pid, &status, 0) == pid && WIFEXITED(status) &&
+		    WEXITSTATUS(status) == 0 && rename(tmp, dest) == 0) {
+		    unlink(compress->filename);
+		} else {
+		    dbprintf("compressing %s failed\n", compress->filename);
+		    unlink(tmp);
+		}
 	    }
-	    waitpid(pid, NULL, 0);
+	    if (in_fd != -1)
+		close(in_fd);
+	    if (out_fd != -1)
+		close(out_fd);
+	    g_free(dest);
+	    g_free(tmp);
+
 	    amfree(compress->filename);
 	    prev = compress;
 	    compress = compress->next;
@@ -2068,6 +2100,15 @@ get_index_name(
     }
     amfree(fn);
 
+    fn = getindex_sorted_zst_fname(dump_hostname, diskname, timestamps, level);
+    if (stat(fn, &dir_stat) == 0 && S_ISREG(dir_stat.st_mode)) {
+	need_uncompress = TRUE;
+	need_sort = FALSE;
+	goto process_dump;
+    }
+    amfree(fn);
+
+    /* gzip-compressed indexes from older versions */
     fn = getindex_sorted_gz_fname(dump_hostname, diskname, timestamps, level);
     if (stat(fn, &dir_stat) == 0 && S_ISREG(dir_stat.st_mode)) {
 	need_uncompress = TRUE;
@@ -2079,6 +2120,14 @@ get_index_name(
     fn = getindex_unsorted_fname(dump_hostname, diskname, timestamps, level);
     if (stat(fn, &dir_stat) == 0 && S_ISREG(dir_stat.st_mode)) {
 	need_uncompress = FALSE;
+	need_sort = TRUE;
+	goto process_dump;
+    }
+    amfree(fn);
+
+    fn = getindex_unsorted_zst_fname(dump_hostname, diskname, timestamps, level);
+    if (stat(fn, &dir_stat) == 0 && S_ISREG(dir_stat.st_mode)) {
+	need_uncompress = TRUE;
 	need_sort = TRUE;
 	goto process_dump;
     }
@@ -2185,6 +2234,7 @@ uncompress_file(
     FILE      *uncompress_err_stream;
     FILE      *sort_err_stream;
     gboolean   ok = TRUE;
+    const char *uncompress_path = UNCOMPRESS_PATH;
 
     /*
      * The result is always a byte-sorted, uncompressed index, so it is
@@ -2218,15 +2268,10 @@ uncompress_file(
 	return filename;
     }
 
-#ifdef UNCOMPRESS_OPT
-#  define PARAM_UNCOMPRESS_OPT UNCOMPRESS_OPT
-#else
-#  define PARAM_UNCOMPRESS_OPT skip_argument
-#endif
-
     /* write to a temporary name, so that a concurrent session never sees a
      * partially written -sorted file */
-    tmp_filename = g_strdup_printf("%s.tmp%ld", new_filename, (long)getpid());
+    /* ends in .tmp so amtrmidx cleans it up if it is ever left behind */
+    tmp_filename = g_strdup_printf("%s.%ld.tmp", new_filename, (long)getpid());
     indexfd = open(tmp_filename, O_WRONLY|O_CREAT|O_TRUNC, 0600);
     if (indexfd == -1) {
 	msg = g_strdup_printf(_("Can't open '%s' for writing: %s"),
@@ -2255,9 +2300,11 @@ uncompress_file(
 	    pipedef = STDERR_PIPE;
 	    out_fd = &indexfd;
 	}
-	pid_gzip = pipespawn(UNCOMPRESS_PATH, pipedef, 0,
+	/* zstd for current indexes, gzip for ones from older versions */
+	uncompress_path = index_uncompress_path(filename);
+	pid_gzip = pipespawn((char *)uncompress_path, pipedef, 0,
 			     &nullfd, out_fd, &uncompress_errfd,
-			     UNCOMPRESS_PATH, PARAM_UNCOMPRESS_OPT,
+			     uncompress_path, index_uncompress_opt(filename),
 			     filename, NULL);
 	aclose(nullfd);
 
@@ -2370,7 +2417,7 @@ uncompress_file(
 
     /* get_pid_status() returns 1 on success, 0 on failure */
     if (need_uncompress) {
-	if (!get_pid_status(pid_gzip, UNCOMPRESS_PATH, emsg))
+	if (!get_pid_status(pid_gzip, (char *)uncompress_path, emsg))
 	    ok = FALSE;
 	if (uncompress_err->len > 0) {
 	    p_last = uncompress_err->pdata + uncompress_err->len;

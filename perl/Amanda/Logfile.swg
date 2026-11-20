@@ -413,6 +413,10 @@ char *getindex_unsorted_gz_fname(char *host, char *disk, char *date, int level);
 char *getindex_sorted_fname(char *host, char *disk, char *date, int level);
 %newobject getindex_sorted_gz_fname;
 char *getindex_sorted_gz_fname(char *host, char *disk, char *date, int level);
+%newobject getindex_unsorted_zst_fname;
+char *getindex_unsorted_zst_fname(char *host, char *disk, char *date, int level);
+%newobject getindex_sorted_zst_fname;
+char *getindex_sorted_zst_fname(char *host, char *disk, char *date, int level);
 
 %immutable;
 amanda_log_handler_t *amanda_log_trace_log;

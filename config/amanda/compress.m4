@@ -14,11 +14,20 @@
 #    - UNCOMPRESS_OPT
 #    - HAVE_GZIP
 #
+#   and, for index files (zstd if available, else the same as above):
+#
+#    - INDEX_COMPRESS_PATH
+#    - INDEX_COMPRESS_SUFFIX
+#    - INDEX_COMPRESS_OPT
+#    - INDEX_UNCOMPRESS_PATH
+#    - INDEX_UNCOMPRESS_OPT
+#
 AC_DEFUN([AMANDA_CHECK_COMPRESSION],
 [
     AC_REQUIRE([AMANDA_PROG_CAT])
     AC_REQUIRE([AMANDA_PROG_COMPRESS])
     AC_REQUIRE([AMANDA_PROG_GZIP])
+    AC_REQUIRE([AMANDA_PROG_ZSTD])
 
     HAVE_GZIP=
     if test "$GZIP"; then
@@ -75,6 +84,37 @@ AC_DEFUN([AMANDA_CHECK_COMPRESSION],
     AC_SUBST(UNCOMPRESS_PATH)
     AC_SUBST(UNCOMPRESS_OPT)
     AC_SUBST(HAVE_GZIP)
+
+    # Index files are compressed with zstd when available.  Readers still
+    # accept gzip-compressed indexes, choosing the program by file suffix.
+    if test "$ZSTD"; then
+	INDEX_COMPRESS_PATH="$ZSTD"
+	INDEX_COMPRESS_SUFFIX=".zst"
+	INDEX_COMPRESS_OPT="-q"
+	INDEX_UNCOMPRESS_PATH="$ZSTD"
+	INDEX_UNCOMPRESS_OPT="-dcq"
+    else
+	INDEX_COMPRESS_PATH="$COMPRESS_PATH"
+	INDEX_COMPRESS_SUFFIX="$COMPRESS_SUFFIX"
+	INDEX_COMPRESS_OPT="$COMPRESS_BEST_OPT"
+	INDEX_UNCOMPRESS_PATH="$UNCOMPRESS_PATH"
+	INDEX_UNCOMPRESS_OPT="$UNCOMPRESS_OPT"
+    fi
+    AC_DEFINE_UNQUOTED(INDEX_COMPRESS_PATH,"$INDEX_COMPRESS_PATH",
+	[Define to the program used to compress index files. ])
+    AC_DEFINE_UNQUOTED(INDEX_COMPRESS_SUFFIX,"$INDEX_COMPRESS_SUFFIX",
+	[Define to the suffix of compressed index files. ])
+    AC_DEFINE_UNQUOTED(INDEX_COMPRESS_OPT,"$INDEX_COMPRESS_OPT",
+	[Define as the option used to compress index files. ])
+    AC_DEFINE_UNQUOTED(INDEX_UNCOMPRESS_PATH,"$INDEX_UNCOMPRESS_PATH",
+	[Define to the program used to uncompress index files. ])
+    AC_DEFINE_UNQUOTED(INDEX_UNCOMPRESS_OPT,"$INDEX_UNCOMPRESS_OPT",
+	[Define as the option used to uncompress index files to stdout. ])
+    AC_SUBST(INDEX_COMPRESS_PATH)
+    AC_SUBST(INDEX_COMPRESS_SUFFIX)
+    AC_SUBST(INDEX_COMPRESS_OPT)
+    AC_SUBST(INDEX_UNCOMPRESS_PATH)
+    AC_SUBST(INDEX_UNCOMPRESS_OPT)
 
     # Empty GZIP so that make dist works.
     GZIP=
