@@ -64,12 +64,6 @@ EXTRA_DIST += amidxtaped.pl \
 	      amrestore.pl
 endif
 
-if WANT_REST_SERVER
-sbin_SCRIPTS_PERL += \
-	    amanda-rest-server
-else
-EXTRA_DIST += amanda-rest-server.pl
-endif
 sbin_SCRIPTS_SHELL = \
 	    amcheckdb
 

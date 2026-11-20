@@ -647,25 +647,6 @@ EXTRA_DIST += Amanda/Label.pm
 Amanda_DATA += Amanda/Message.pm
 EXTRA_DIST += Amanda/Message.pm
 
-if WANT_REST_SERVER
-# PACKAGE: Amanda::Rest::*
-AmandaRestdir = $(amperldir)/Amanda/Rest
-AmandaRest_DATA = \
-       Amanda/Rest/Amcheck.pm \
-       Amanda/Rest/Configs.pm \
-       Amanda/Rest/Dles.pm \
-       Amanda/Rest/Dumps.pm \
-       Amanda/Rest/Labels.pm \
-       Amanda/Rest/Report.pm \
-       Amanda/Rest/Runs.pm \
-       Amanda/Rest/Services.pm \
-       Amanda/Rest/Status.pm \
-       Amanda/Rest/Storages.pm \
-       Amanda/Rest/Version.pm
-AmandaRestStoragesdir = $(amperldir)/Amanda/Rest/Storages
-AmandaRestStorages_DATA = Amanda/Rest/Storages/Labels.pm
-PM_FILES += $(AmandaRest_DATA) $(AmandaRestStorages_DATA)
-endif
 EXTRA_DIST += \
        Amanda/Rest/Amcheck.pm \
        Amanda/Rest/Configs.pm \

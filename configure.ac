@@ -20,17 +20,6 @@ LT_INIT
 AMANDA_INIT_SUMMARY
 AMANDA_CONFIGURE
 
-AC_DEFINE([USE_GETTEXT], 1, [Define to 1 if files will be processed with gettextize])
-
-#
-# Internationalization
-#
-AMANDA_SETUP_I18N
-dnl These lines *must* be in configure.in, and not indented
-AM_GNU_GETTEXT_VERSION([0.15])
-AM_GNU_GETTEXT([external])
-AMANDA_PROG_GETTEXT
-
 
 dnl
 dnl Set up files for autoconf substitution.  All files are listed here, in
@@ -40,7 +29,6 @@ AC_CONFIG_FILES([
     Makefile
     amandad-src/Makefile
     amar-src/Makefile
-    amplot/Makefile
     application-src/Makefile
     client-src/Makefile
     common-src/Makefile
@@ -50,13 +38,9 @@ AC_CONFIG_FILES([
     gnulib/Makefile
     installcheck/Makefile
     man/Makefile
-    oldrecover-src/Makefile
-    packaging/Makefile
     perl/amglue/Makefile
     perl/Makefile
-    po/Makefile
     recover-src/Makefile
-    rest-server/Makefile
     server-src/Makefile
     xfer-src/Makefile
 ])

@@ -4,8 +4,6 @@
 
 transform =	s,x,x,;
 
-AMPLOT_MAN_PAGES =  amplot.8
-
 COMMON_MAN_PAGES =  amanda.8 \
 		    amanda.conf.5 \
 		    amanda-client.conf.5 \
@@ -77,20 +75,13 @@ RECOVER_MAN_PAGES =  amrecover.8
 RESTORE_MAN_PAGES =  amrestore.8 \
 		     amfetchdump.8
 
-REST_SERVER_MAN_PAGES = amanda-rest-server.8
-
-ALL_MAN_PAGES = $(AMPLOT_MAN_PAGES) \
-	   $(CLIENT_MAN_PAGES) \
+ALL_MAN_PAGES = $(CLIENT_MAN_PAGES) \
 	   $(COMMON_MAN_PAGES) \
 	   $(SERVER_MAN_PAGES) \
 	   $(RECOVER_MAN_PAGES) \
-	   $(RESTORE_MAN_PAGES) \
-	   $(REST_SERVER_MAN_PAGES)
+	   $(RESTORE_MAN_PAGES)
 
 WANTED_MAN_PAGES = $(COMMON_MAN_PAGES)
-if WANT_AMPLOT
-  WANTED_MAN_PAGES += $(AMPLOT_MAN_PAGES)
-endif
 if WANT_CLIENT
   WANTED_MAN_PAGES += $(CLIENT_MAN_PAGES)
 endif
@@ -102,9 +93,6 @@ if WANT_RECOVER
 endif
 if WANT_RESTORE
   WANTED_MAN_PAGES += $(RESTORE_MAN_PAGES)
-endif
-if WANT_REST_SERVER
-  WANTED_MAN_PAGES += $(REST_SERVER_MAN_PAGES)
 endif
 
 SRCMANPAGEDIR  = $(srcdir)/xml-source

@@ -71,7 +71,6 @@ dnl -------------------------------------------------------------------------
 # Set up for Amanda components and modules
 #
 AC_REQUIRE([AMANDA_CHECK_COMPONENTS])
-AMANDA_SETUP_AMPLOT
 AMANDA_SETUP_DOCUMENTATION
 AMANDA_SETUP_DEFAULTS
 AMANDA_SETUP_LFS
@@ -84,7 +83,6 @@ AMANDA_CHECK_READDIR
 AMANDA_CHECK_DEVICE_PREFIXES
 AMANDA_SYSHACKS
 AMANDA_EXPAND_DIRS
-AMANDA_REST_EXTENSIONS
 
 #
 # Security (authentication) mechansims
@@ -220,7 +218,6 @@ AC_CHECK_HEADERS(
 AC_DEFINE([HAVE_AMANDA_H], 1, [Define to 1 if you have the "amanda.h" header file.])
 AC_DEFINE([HAVE_UTIL_H], 1, [Define to 1 if you have the "util.h" header file.])
 
-AC_DEFINE([USE_GETTEXT], 1, [Define to 1 if files will be processed with gettextize])
 
 # okay if not found.. if not needed
 PKG_CHECK_MODULES([TIRPC],[libtirpc],[ 

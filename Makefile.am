@@ -4,7 +4,7 @@ AUTOMAKE_OPTIONS = 1.10 foreign
 include $(top_srcdir)/config/automake/vars.am
 include $(top_srcdir)/config/automake/installperms.am
 
-ACLOCAL_AMFLAGS = --force -I config -I . -I config/gettext-macros -I config/gnulib -I config/amanda -I config/macro-archive -I /usr/share/aclocal
+ACLOCAL_AMFLAGS = --force -I config -I . -I config/gnulib -I config/amanda -I config/macro-archive -I /usr/share/aclocal
 
 if WANT_CLIENT
 CLIENT_SUBDIRS = client-src application-src
@@ -13,13 +13,7 @@ if WANT_SERVER
 SERVER_SUBDIRS = device-src server-src
 endif
 if WANT_RECOVER
-RECOVER_SUBDIRS = recover-src oldrecover-src
-endif
-if WANT_AMPLOT
-PLOT_SUBDIRS = amplot
-endif
-if WANT_REST_SERVER
-REST_SERVER_SUBDIRS = rest-server
+RECOVER_SUBDIRS = recover-src
 endif
 # order is significant, don't change it arbitrarily
 SUBDIRS = . \
@@ -34,13 +28,9 @@ SUBDIRS = . \
 	$(SERVER_SUBDIRS) \
 	$(RESTORE_SUBDIRS) \
 	$(RECOVER_SUBDIRS) \
-	$(PLOT_SUBDIRS) \
-	$(REST_SERVER_SUBDIRS) \
 	perl \
-	po \
 	man \
 	example \
-	packaging \
 	installcheck
 
 pkgdata_DATA = \
@@ -52,25 +42,6 @@ pkgdata_DATA = \
 EXTRA_DIST += $(SNAPSHOT_STAMP) \
 	$(pkgdata_DATA)			\
         autogen 			\
-	contrib/README			\
-	contrib/dbbackup.README		\
-	contrib/dbbackup.ksh		\
-	contrib/dbbackup.sql		\
-	contrib/dbbackup.tcl		\
-	contrib/mkamandisk		\
-	contrib/set_prod_link.pl	\
-	contrib/gsc/README		\
-	contrib/gsc/cfggsc.c		\
-	contrib/gsc/defgsc.c		\
-	contrib/gsc/gsc.add		\
-	contrib/gsc/gscdd.c		\
-	contrib/gsc/gscdds.h		\
-	contrib/gsc/makefile		\
-	contrib/gsc/tstinq.c		\
-	contrib/gsc/ucfggsc.c		\
-	patches/regex-3.6alpha.patch	\
-	patches/samba-largefs.patch	\
-	patches/tar-1.12.patch		\
 	UPGRADING			\
 	DEVELOPING			\
 	VERSION				\

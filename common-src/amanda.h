@@ -108,27 +108,10 @@
 #  endif
 #endif
 
-#ifdef ENABLE_NLS
-#  include <libintl.h>
-#  include <locale.h>
-#  define  plural(String1, String2, Count)				\
+#include <libintl.h>
+#include <locale.h>
+#define plural(String1, String2, Count)					\
 		(((Count) == 1) ? (String1) : (String2))
-#else
-#  define plural(String1, String2, Count)				\
-		(((Count) == 1) ? (String1) : (String2))
-#  define setlocale(Which, Locale)
-#  define textdomain(Domain)
-#  define bindtextdomain(Package, Directory)
-#  define gettext(String)			String
-#  define dgettext(Domain, String)		String
-#  define dcgettext(Domain, String, Catagory)	String
-#  define ngettext(String1, String2, Count)				\
-		plural((String1), (String2), (Count))
-#  define dngettext(Domain, String1, String2, Count)			\
-		plural((String1), (String2), (Count))
-#  define dcngettext(Domain, String1, String2, Count, Catagory)		\
-		plural((String1), (String2), (Count))
-#endif
 #define T_(String)			String
 #ifndef SWIG /* TODO: make this go away */
 #define _(String)			dgettext("amanda", (String))
