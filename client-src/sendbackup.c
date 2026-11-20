@@ -1165,11 +1165,6 @@ check_status(
         /*
 	 * Ultrix dump returns 1 sometimes, but it is ok.
 	 */
-#ifdef DUMP_RETURNS_1
-        if(ret == 1) {
-	    rc = 0;
-	}
-#endif
 	dumppid = -1;
 	strX = "dump";
     } else if(pid == tarpid) {
@@ -1823,8 +1818,8 @@ handle_crc_to_shm_ring_thread(
 }
 
 
-extern backup_program_t dump_program, gnutar_program;
+extern backup_program_t gnutar_program;
 
 backup_program_t *programs[] = {
-  &dump_program, &gnutar_program, NULL
+  &gnutar_program, NULL
 };

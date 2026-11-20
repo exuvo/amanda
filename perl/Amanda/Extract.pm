@@ -90,11 +90,6 @@ sub local_message {
 package Amanda::Extract;
 
 my %restore_programs = (
-    "STAR" => [ $Amanda::Constants::STAR, qw(-x -f -) ],
-    "DUMP" => [ $Amanda::Constants::RESTORE, qw(xbf 2 -) ],
-    "VDUMP" => [ $Amanda::Constants::VRESTORE, qw(xf -) ],
-    "VXDUMP" => [ $Amanda::Constants::VXRESTORE, qw(xbf 2 -) ],
-    "XFSDUMP" => [ $Amanda::Constants::XFSRESTORE, qw(-v silent) ],
     "TAR" => [ $Amanda::Constants::GNUTAR, qw(--ignore-zeros -xf -) ],
     "GTAR" => [ $Amanda::Constants::GNUTAR, qw(--ignore-zeros -xf -) ],
     "GNUTAR" => [ $Amanda::Constants::GNUTAR, qw(--ignore-zeros -xf -) ],
@@ -102,11 +97,6 @@ my %restore_programs = (
 );
 
 my %validate_programs = (
-    "STAR" => [ $Amanda::Constants::STAR, qw(-t -f -) ],
-    "DUMP" => [ $Amanda::Constants::RESTORE, qw(tbf 2 -) ],
-    "VDUMP" => [ $Amanda::Constants::VRESTORE, qw(tf -) ],
-    "VXDUMP" => [ $Amanda::Constants::VXRESTORE, qw(tbf 2 -) ],
-    "XFSDUMP" => [ $Amanda::Constants::XFSRESTORE, qw(-t -v silent) ],
     "TAR" => [ $Amanda::Constants::GNUTAR, qw(--ignore-zeros -tf -) ],
     "GTAR" => [ $Amanda::Constants::GNUTAR, qw(--ignore-zeros -tf -) ],
     "GNUTAR" => [ $Amanda::Constants::GNUTAR, qw(--ignore-zeros -tf -) ],

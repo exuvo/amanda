@@ -117,25 +117,10 @@ my %build_info = (
 
     # executable paths
 
-    'dump' => $Amanda::Constants::DUMP,
-    'restore' => $Amanda::Constants::RESTORE,
-    'vdump' => $Amanda::Constants::VDUMP,
-    'vrestore' => $Amanda::Constants::VRESTORE,
-    'xfsdump' => $Amanda::Constants::XFSDUMP,
-    'xfsrestore' => $Amanda::Constants::XFSRESTORE,
-    'vxdump' => $Amanda::Constants::VXDUMP,
-    'vxrestore' => $Amanda::Constants::VXRESTORE,
-    'samba_client' => $Amanda::Constants::SAMBA_CLIENT,
-    'bsdtar' => $Amanda::Constants::BSDTAR,
     'gnutar' => $Amanda::Constants::GNUTAR,
-    'star' => $Amanda::Constants::STAR,
-    'bsdtar_path' => $Amanda::Constants::BSDTAR,
     'gnutar_path' => $Amanda::Constants::GNUTAR,
-    'star_path' => $Amanda::Constants::STAR,
     'compress_path' => $Amanda::Constants::COMPRESS_PATH,
     'uncompress_path' => $Amanda::Constants::UNCOMPRESS_PATH,
-    'aix_backup' => $Amanda::Constants::AIX_BACKUP,
-    'dump_returns_1' => $Amanda::Constants::DUMP_RETURNS_1,
 
     # amanda modules
 
@@ -149,7 +134,6 @@ my %build_info = (
     'default_tape_server' => $Amanda::Constants::DEFAULT_TAPE_SERVER,
     'default_tape_device' => $Amanda::Constants::DEFAULT_TAPE_DEVICE,
     'client_login' => $Amanda::Constants::CLIENT_LOGIN,
-    'use_rundump' => $Amanda::Constants::USE_RUNDUMP,
     'check_userid' => $Amanda::Constants::CHECK_USERID,
 
     # compression information

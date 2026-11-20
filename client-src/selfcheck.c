@@ -48,9 +48,6 @@
 #include "base64.h"
 #include "security-file.h"
 
-#ifdef SAMBA_CLIENT
-#include "findpass.h"
-#endif
 
 int need_samba=0;
 int need_rundump=0;
@@ -539,62 +536,11 @@ check_options(
 			"device", dle->device,
 			"disk", dle->disk )));
 	}
-#ifdef USE_RUNDUMP
-	need_rundump=1;
-#endif
-#ifndef AIX_BACKUP
-#ifdef VDUMP
-#ifdef DUMP
-	if (g_str_equal(amname_to_fstype(dle->device), "advfs"))
-#else
-	if (1)
-#endif
-	{
-	    need_vdump=1;
-	    need_rundump=1;
-	    if (dle->create_index)
-		need_vrestore=1;
-	}
-	else
-#endif /* VDUMP */
-#ifdef XFSDUMP
-#ifdef DUMP
-	if (g_str_equal(amname_to_fstype(dle->device), "xfs"))
-#else
-	if (1)
-#endif
-	{
-	    need_xfsdump=1;
-	    need_rundump=1;
-	    if (dle->create_index)
-		need_xfsrestore=1;
-	}
-	else
-#endif /* XFSDUMP */
-#ifdef VXDUMP
-#ifdef DUMP
-	if (g_str_equal(amname_to_fstype(dle->device), "vxfs"))
-#else
-	if (1)
-#endif
-	{
-	    need_vxdump=1;
-	    if (dle->create_index)
-		need_vxrestore=1;
-	}
-	else
-#endif /* VXDUMP */
 	{
 	    need_dump=1;
 	    if (dle->create_index)
 		need_restore=1;
 	}
-#else
-	/* AIX backup program */
-	need_dump=1;
-	if (dle->create_index)
-	    need_restore=1;
-#endif
     }
     if ((dle->compress == COMP_BEST) || (dle->compress == COMP_FAST)
 		|| (dle->compress == COMP_CUST)) {
@@ -643,13 +589,6 @@ check_disk(
     dle_t *dle)
 {
     char *device = NULL;
-#ifdef SAMBA_CLIENT
-    char *user_and_password = NULL;
-    char *domain = NULL;
-    char *share = NULL, *subdir = NULL;
-    size_t lpass = 0;
-    char *extra_info = NULL;
-#endif
     int amode = R_OK;
     int access_result;
     char *access_type;
@@ -679,187 +618,12 @@ check_disk(
 
 	if (g_str_equal(dle->program, "GNUTAR")) {
             if(dle->device[0] == '/' && dle->device[1] == '/') {
-#ifdef SAMBA_CLIENT
-		int nullfd, checkerr;
-		int passwdfd;
-		char *pwtext;
-		size_t pwtext_len;
-		pid_t checkpid;
-		amwait_t retstat;
-		int rc;
-		char *line;
-		char *sep;
-		FILE *ferr;
-		char *pw_fd_env;
-		int errdos;
-		char *err = NULL;
-
-		parsesharename(dle->device, &share, &subdir);
-		if (!share) {
-		    delete_message(selfcheck_print_message(build_message(
-			AMANDA_FILE, __LINE__, 3600021, MSG_ERROR, 3,
-			"hostname", g_options->hostname,
-			"device", dle->device,
-			"disk", dle->disk )));
-		    nb_error++;
-		    goto common_exit;
-		}
-		if ((subdir) && (SAMBA_VERSION < 2)) {
-		    delete_message(selfcheck_print_message(build_message(
-			AMANDA_FILE, __LINE__, 3600022, MSG_ERROR, 3,
-			"hostname", g_options->hostname,
-			"device", dle->device,
-			"disk", dle->disk )));
-		    nb_error++;
-		    goto common_exit;
-		}
-		if ((user_and_password = findpass(share, &domain)) == NULL) {
-		    delete_message(selfcheck_print_message(build_message(
-			AMANDA_FILE, __LINE__, 3600023, MSG_ERROR, 3,
-			"hostname", g_options->hostname,
-			"device", dle->device,
-			"disk", dle->disk )));
-		    nb_error++;
-		    goto common_exit;
-		}
-		lpass = strlen(user_and_password);
-		if ((pwtext = strchr(user_and_password, '%')) == NULL) {
-		    delete_message(selfcheck_print_message(build_message(
-			AMANDA_FILE, __LINE__, 3600024, MSG_ERROR, 3,
-			"hostname", g_options->hostname,
-			"device", dle->device,
-			"disk", dle->disk )));
-		    nb_error++;
-		    goto common_exit;
-		}
-		*pwtext++ = '\0';
-		pwtext_len = (size_t)strlen(pwtext);
-		amfree(device);
-		if ((device = makesharename(share, 0)) == NULL) {
-		    delete_message(selfcheck_print_message(build_message(
-			AMANDA_FILE, __LINE__, 3600025, MSG_ERROR, 3,
-			"hostname", g_options->hostname,
-			"device", dle->device,
-			"disk", dle->disk )));
-		    nb_error++;
-		    goto common_exit;
-		}
-
-		if ((nullfd = open("/dev/null", O_RDWR)) == -1) {
-		    delete_message(selfcheck_print_message(build_message(
-			AMANDA_FILE, __LINE__, 3600026, MSG_ERROR, 4,
-			"errno", errno,
-			"hostname", g_options->hostname,
-			"device", dle->device,
-			"disk", dle->disk )));
-		    nb_error++;
-		    goto common_exit;
-		}
-
-		if (pwtext_len > 0) {
-		    pw_fd_env = "PASSWD_FD";
-		} else {
-		    pw_fd_env = "dummy_PASSWD_FD";
-		}
-		checkpid = pipespawn(SAMBA_CLIENT, STDERR_PIPE|PASSWD_PIPE, 0,
-				     &nullfd, &nullfd, &checkerr,
-				     pw_fd_env, &passwdfd,
-				     "smbclient",
-				     device,
-				     *user_and_password ? "-U" : skip_argument,
-				     *user_and_password ? user_and_password
-							: skip_argument,
-				     "-E",
-				     domain ? "-W" : skip_argument,
-				     domain ? domain : skip_argument,
-#if SAMBA_VERSION >= 2
-				     subdir ? "-D" : skip_argument,
-				     subdir ? subdir : skip_argument,
-#endif
-				     "-c", "quit",
-				     NULL);
-		amfree(domain);
-		aclose(nullfd);
-		/*@ignore@*/
-		if ((pwtext_len > 0) &&
-		    full_write(passwdfd, pwtext, pwtext_len) < pwtext_len) {
-		    delete_message(selfcheck_print_message(build_message(
-			AMANDA_FILE, __LINE__, 3600027, MSG_ERROR, 4,
-			"errno", errno,
-			"hostname", g_options->hostname,
-			"device", dle->device,
-			"disk", dle->disk )));
-		    nb_error++;
-		    aclose(passwdfd);
-		    goto common_exit;
-		}
-		/*@end@*/
-		memset(user_and_password, '\0', (size_t)lpass);
-		amfree(user_and_password);
-		aclose(passwdfd);
-		ferr = fdopen(checkerr, "r");
-		if (!ferr) {
-		    delete_message(selfcheck_print_message(build_message(
-			AMANDA_FILE, __LINE__, 3600028, MSG_ERROR, 4,
-			"errno", errno,
-			"hostname", g_options->hostname,
-			"device", dle->device,
-			"disk", dle->disk )));
-		    nb_error++;
-		    exit(1);
-		    /*NOTREACHED*/
-		}
-		sep = "";
-		errdos = 0;
-		for(sep = ""; (line = pgets(ferr)) != NULL; free(line)) {
-		    if (line[0] == '\0')
-			continue;
-		    strappend(extra_info, sep);
-		    strappend(extra_info, line);
-		    sep = ": ";
-		    if(strstr(line, "ERRDOS") != NULL) {
-			errdos = 1;
-		    }
-		}
-		afclose(ferr);
-		checkerr = -1;
-		rc = 0;
-		sep = "";
-		waitpid(checkpid, &retstat, 0);
-		if (!WIFEXITED(retstat) || WEXITSTATUS(retstat) != 0) {
-		    char *exitstr = str_exit_status("smbclient", retstat);
-		    strappend(err, sep);
-		    strappend(err, exitstr);
-		    sep = "\n";
-		    amfree(exitstr);
-
-		    rc = 1;
-		}
-		if (errdos != 0 || rc != 0) {
-		    char *errmsg;
-		    if (extra_info) {
-			errmsg = g_strdup_printf("%s %s", extra_info, err);
-		    } else {
-			errmsg = g_strdup(err);
-		    }
-		    delete_message(selfcheck_print_message(build_message(
-			AMANDA_FILE, __LINE__, 3600087, MSG_ERROR, 4,
-			"errmsg", errmsg,
-			"hostname", g_options->hostname,
-			"device", dle->device,
-			"disk", dle->disk )));
-
-		    g_free(errmsg);
-		    g_free(err);
-		}
-#else
 		delete_message(selfcheck_print_message(build_message(
 			AMANDA_FILE, __LINE__, 3600030, MSG_ERROR, 3,
 			"hostname", g_options->hostname,
 			"device", dle->device,
 			"disk", dle->disk )));
 		nb_error++;
-#endif
 		goto common_exit;
 	    }
 	    amode = F_OK;
@@ -875,26 +639,10 @@ check_disk(
 		nb_error++;
 		goto common_exit;
 	    }
-#ifdef VDUMP								/* { */
-#ifdef DUMP								/* { */
-            if (g_str_equal(amname_to_fstype(dle->device), "advfs"))
-#else									/* }{*/
-	    if (1)
-#endif									/* } */
-	    {
-		amfree(device);
-		device = amname_to_dirname(dle->device);
-		amode = F_OK;
-	    } else
-#endif									/* } */
 	    {
 		amfree(device);
 		device = amname_to_devname(dle->device);
-#ifdef USE_RUNDUMP
-		amode = F_OK;
-#else
 		amode = R_OK;
-#endif
 	    }
 	}
     }
@@ -1339,15 +1087,6 @@ common_exit:
     if (!qdevice)
 	qdevice = quote_string(device);
 
-#ifdef SAMBA_CLIENT
-    amfree(share);
-    amfree(subdir);
-    if(user_and_password) {
-	memset(user_and_password, '\0', (size_t)lpass);
-	amfree(user_and_password);
-    }
-    amfree(domain);
-#endif
 
     if (nb_error == 0) {
 	if (dle->disk) {
@@ -1373,12 +1112,6 @@ common_exit:
 			"disk", dle->disk )));
 	}
     }
-#ifdef SAMBA_CLIENT
-    if(extra_info) {
-	dbprintf(_("extra info: %s\n"), extra_info);
-	amfree(extra_info);
-    }
-#endif
     amfree(qdisk);
     amfree(qdevice);
     amfree(qamdevice);
@@ -1424,83 +1157,51 @@ check_overall(void)
     }
 
     if( need_dump ) {
-#ifdef DUMP
-	delete_message(selfcheck_print_message(check_file_message(DUMP, X_OK)));
-#else
 	delete_message(selfcheck_print_message(build_message(
 			AMANDA_FILE, __LINE__, 3600072, MSG_ERROR, 1,
 			"hostname", g_options->hostname)));
-#endif
     }
 
     if( need_restore ) {
-#ifdef RESTORE
-	delete_message(selfcheck_print_message(check_file_message(RESTORE, X_OK)));
-#else
 	delete_message(selfcheck_print_message(build_message(
 			AMANDA_FILE, __LINE__, 3600073, MSG_ERROR, 1,
 			"hostname", g_options->hostname)));
-#endif
     }
 
     if ( need_vdump ) {
-#ifdef VDUMP
-	delete_message(selfcheck_print_message(check_file_message(VDUMP, X_OK)));
-#else
 	delete_message(selfcheck_print_message(build_message(
 			AMANDA_FILE, __LINE__, 3600074, MSG_ERROR, 1,
 			"hostname", g_options->hostname)));
-#endif
     }
 
     if ( need_vrestore ) {
-#ifdef VRESTORE
-	delete_message(selfcheck_print_message(check_file_message(VRESTORE, X_OK)));
-#else
 	delete_message(selfcheck_print_message(build_message(
 			AMANDA_FILE, __LINE__, 3600075, MSG_ERROR, 1,
 			"hostname", g_options->hostname)));
-#endif
     }
 
     if( need_xfsdump ) {
-#ifdef XFSDUMP
-	delete_message(selfcheck_print_message(check_file_message(XFSDUMP, F_OK)));
-#else
 	delete_message(selfcheck_print_message(build_message(
 			AMANDA_FILE, __LINE__, 3600076, MSG_ERROR, 1,
 			"hostname", g_options->hostname)));
-#endif
     }
 
     if( need_xfsrestore ) {
-#ifdef XFSRESTORE
-	delete_message(selfcheck_print_message(check_file_message(XFSRESTORE, X_OK)));
-#else
 	delete_message(selfcheck_print_message(build_message(
 			AMANDA_FILE, __LINE__, 3600077, MSG_ERROR, 1,
 			"hostname", g_options->hostname)));
-#endif
     }
 
     if( need_vxdump ) {
-#ifdef VXDUMP
-	delete_message(selfcheck_print_message(check_file_message(VXDUMP, X_OK)));
-#else
 	delete_message(selfcheck_print_message(build_message(
 			AMANDA_FILE, __LINE__, 3600078, MSG_ERROR, 1,
 			"hostname", g_options->hostname)));
-#endif
     }
 
     if( need_vxrestore ) {
-#ifdef VXRESTORE
-	delete_message(selfcheck_print_message(check_file_message(VXRESTORE, X_OK)));
-#else
 	delete_message(selfcheck_print_message(build_message(
 			AMANDA_FILE, __LINE__, 3600079, MSG_ERROR, 1,
 			"hostname", g_options->hostname)));
-#endif
     }
 
     if( need_gnutar ) {
@@ -1543,13 +1244,9 @@ check_overall(void)
     }
 
     if( need_samba ) {
-#ifdef SAMBA_CLIENT
-	delete_message(selfcheck_print_message(check_file_message(SAMBA_CLIENT, X_OK)));
-#else
 	delete_message(selfcheck_print_message(build_message(
 			AMANDA_FILE, __LINE__, 3600081, MSG_ERROR, 1,
 			"hostname", g_options->hostname)));
-#endif
 	testfd = open("/etc/amandapass", R_OK);
 	if (testfd >= 0) {
 	    if(fstat(testfd, &buf) == 0) {
@@ -1583,21 +1280,15 @@ check_overall(void)
     if (need_dump || need_xfsdump ) {
 	if (check_file_exist("/etc/dumpdates")) {
 	    delete_message(selfcheck_print_message(check_file_message("/etc/dumpdates",
-#ifdef USE_RUNDUMP
-		       F_OK
-#else
 		       R_OK|W_OK
-#endif
 		      )));
 	} else {
-#ifndef USE_RUNDUMP
 	    if (access("/etc", R_OK|W_OK) == -1) {
 		delete_message(selfcheck_print_message(build_message(
 			AMANDA_FILE, __LINE__, 3600086, MSG_ERROR, 2,
 			"errno", errno,
 			"hostname", g_options->hostname)));
 	    }
-#endif
 	}
     }
 

@@ -18,7 +18,7 @@ LINTFLAGS=$(AMLINTFLAGS)
 
 amlib_LTLIBRARIES =	libamclient.la
 
-amlibexec_PROGRAMS =	noop calcsize killpgrp rundump runtar selfcheck sendbackup senddiscover sendsize
+amlibexec_PROGRAMS =	noop calcsize killpgrp runtar selfcheck sendbackup senddiscover sendsize
 
 amlibexec_SCRIPTS_SHELL = patch-system
 amlibexec_SCRIPTS_PERL = restore
@@ -32,9 +32,6 @@ amlibexec_SCRIPTS = $(amlibexec_SCRIPTS_SHELL) $(amlibexec_SCRIPTS_PERL)
 
 libamclient_la_SOURCES=	amandates.c		getfsent.c	\
 			unctime.c		client_util.c
-if WANT_SAMBA
-libamclient_la_SOURCES += findpass.c
-endif
 
 libamclient_la_LDFLAGS = -release $(VERSION) $(AS_NEEDED_FLAGS)
 libamclient_la_LIBADD  = ../common-src/libamanda.la
@@ -62,14 +59,14 @@ DISTCLEANFILES += config.log
 
 
 sendbackup_SOURCES = 	sendbackup.c		sendbackup.h	  \
-			sendbackup-dump.c	sendbackup-gnutar.c
+			sendbackup-gnutar.c
 
 noinst_HEADERS	= 	amandates.h	getfsent.h	\
-			findpass.h	client_util.h
+			client_util.h
 			
 if WANT_SETUID_CLIENT
 INSTALLPERMS_exec = dest=$(amlibexecdir) chown=root:setuid chmod=04750 \
-		calcsize killpgrp rundump runtar
+		calcsize killpgrp runtar
 endif
 
 lint:

@@ -39,9 +39,6 @@
 #include "getfsent.h"			/* for amname_to_dirname lookup */
 #include "conffile.h"
 
-#ifdef SAMBA_CLIENT
-#include "findpass.h"
-#endif
 
 static amregex_t re_table[] = {
   /* tar prints the size in bytes */
@@ -61,58 +58,6 @@ static amregex_t re_table[] = {
   AM_NORMAL_RE(": File .* shrunk by [0-9][0-9]* bytes, padding with zeros"),
   AM_NORMAL_RE(": Cannot add file .*: No such file or directory$"),
   AM_NORMAL_RE(": Error exit delayed from previous errors"),
-#endif
-  
-  /* samba may produce these output messages */
-  AM_NORMAL_RE("^[Aa]dded interface"),
-  AM_NORMAL_RE("^session request to "),
-  AM_NORMAL_RE("^tar: dumped [0-9][0-9]* (tar )?files"),
-
-#if SAMBA_VERSION < 2
-  AM_NORMAL_RE("^doing parameter"),
-  AM_NORMAL_RE("^pm_process\\(\\)"),
-  AM_NORMAL_RE("^adding IPC"),
-  AM_NORMAL_RE("^Opening"),
-  AM_NORMAL_RE("^Connect"),
-  AM_NORMAL_RE("^Domain="),
-  AM_NORMAL_RE("^max"),
-  AM_NORMAL_RE("^security="),
-  AM_NORMAL_RE("^capabilities"),
-  AM_NORMAL_RE("^Sec mode "),
-  AM_NORMAL_RE("^Got "),
-  AM_NORMAL_RE("^Chose protocol "),
-  AM_NORMAL_RE("^Server "),
-  AM_NORMAL_RE("^Timezone "),
-  AM_NORMAL_RE("^received"),
-  AM_NORMAL_RE("^FINDFIRST"),
-  AM_NORMAL_RE("^FINDNEXT"),
-  AM_NORMAL_RE("^dos_clean_name"),
-  AM_NORMAL_RE("^file"),
-  AM_NORMAL_RE("^getting file"),
-  AM_NORMAL_RE("^Rejected chained"),
-  AM_NORMAL_RE("^nread="),
-  AM_NORMAL_RE("^\\([0-9][0-9]* kb/s\\)"),
-  AM_NORMAL_RE("^\\([0-9][0-9]*\\.[0-9][0-9]* kb/s\\)"),
-  AM_NORMAL_RE("^[ \t]*[0-9][0-9]* \\([ \t]*[0-9][0-9]*\\.[0-9][0-9]* kb/s\\)"),
-  AM_NORMAL_RE("^[ \t]*directory "),
-  AM_NORMAL_RE("^load_client_codepage"),
-#endif
-
-#ifdef IGNORE_SMBCLIENT_ERRORS
-  /* This will cause amanda to ignore real errors, but that may be
-   * unavoidable when you're backing up system disks.  It seems to be
-   * a safe thing to do if you know what you're doing.  */
-  AM_NORMAL_RE("^ERRDOS - ERRbadshare opening remote file"),
-  AM_NORMAL_RE("^ERRDOS - ERRbadfile opening remote file"),
-  AM_NORMAL_RE("^ERRDOS - ERRnoaccess opening remote file"),
-  AM_NORMAL_RE("^ERRSRV - ERRaccess setting attributes on file"),
-  AM_NORMAL_RE("^ERRDOS - ERRnoaccess setting attributes on file"),
-#endif
-
-#if SAMBA_VERSION >= 2
-  /* Backup attempt of nonexisting directory */
-  AM_ERROR_RE("ERRDOS - ERRbadpath (Directory invalid.)"),
-  AM_NORMAL_RE("^Domain="),
 #endif
 
   /* catch-all: DMP_STRANGE is returned for all other lines */
@@ -273,11 +218,6 @@ start_backup(
     if (strlen(gnutar_list_dir) == 0)
 	gnutar_list_dir = NULL;
 
-#ifdef SAMBA_CLIENT							/* { */
-    if (dle->device[0] == '/' && dle->device[1]=='/')
-	amfree(incrname);
-    else
-#endif									/* } */
     if (gnutar_list_dir) {
 	char *basename = NULL;
 	char number[NUM_STR_SIZE];
@@ -419,148 +359,6 @@ start_backup(
 			 " \'s/^\\.//\'",
 			 NULL);
 
-#ifdef SAMBA_CLIENT							/* { */
-    /* Use sambatar if the disk to back up is a PC disk */
-    if (dle->device[0] == '/' && dle->device[1]=='/') {
-	char *sharename = NULL, *user_and_password = NULL, *domain = NULL;
-	char *share = NULL, *subdir = NULL;
-	char *pwtext = NULL;
-	char *taropt;
-	int passwdf = -1;
-	size_t lpass;
-	size_t pwtext_len;
-	char *pw_fd_env;
-
-	parsesharename(dle->device, &share, &subdir);
-	if (!share) {
-	    amfree(share);
-	    amfree(subdir);
-	    set_pname(error_pn);
-	    amfree(error_pn);
-	    error(_("cannot parse disk entry %s for share/subdir"), qdisk);
-	    /*NOTREACHED*/
-	}
-	if ((subdir) && (SAMBA_VERSION < 2)) {
-	    amfree(share);
-	    amfree(subdir);
-	    set_pname(error_pn);
-	    amfree(error_pn);
-	    error(_("subdirectory specified for share %s but samba not v2 or better"), qdisk);
-	    /*NOTREACHED*/
-	}
-	if ((user_and_password = findpass(share, &domain)) == NULL) {
-	    if(domain) {
-		memset(domain, '\0', strlen(domain));
-		amfree(domain);
-	    }
-	    set_pname(error_pn);
-	    amfree(error_pn);
-	    error(_("error [invalid samba host or password not found?]"));
-	    /*NOTREACHED*/
-	}
-	lpass = strlen(user_and_password);
-	if ((pwtext = strchr(user_and_password, '%')) == NULL) {
-	    memset(user_and_password, '\0', lpass);
-	    amfree(user_and_password);
-	    if(domain) {
-		memset(domain, '\0', strlen(domain));
-		amfree(domain);
-	    }
-	    set_pname(error_pn);
-	    amfree(error_pn);
-	    error(_("password field not \'user%%pass\' for %s"), qdisk);
-	    /*NOTREACHED*/
-	}
-	*pwtext++ = '\0';
-	pwtext_len = strlen(pwtext);
-	if ((sharename = makesharename(share, 0)) == 0) {
-	    memset(user_and_password, '\0', lpass);
-	    amfree(user_and_password);
-	    if(domain) {
-		memset(domain, '\0', strlen(domain));
-		amfree(domain);
-	    }
-	    set_pname(error_pn);
-	    amfree(error_pn);
-	    error(_("error [can't make share name of %s]"), share);
-	    /*NOTREACHED*/
-	}
-
-	taropt = g_strdup("-T");
-	if(dle->exclude_file && dle->exclude_file->nb_element == 1) {
-	    strappend(taropt, "X");
-	}
-#if SAMBA_VERSION >= 2
-	strappend(taropt, "q");
-#endif
-	strappend(taropt, "c");
-	if (level != 0) {
-	    strappend(taropt, "g");
-	} else if (dle->record) {
-	    strappend(taropt, "a");
-	}
-
-	if (subdir) {
-	    dbprintf(_("gnutar: backup of %s/%s\n"), sharename, subdir);
-	} else {
-	    dbprintf(_("gnutar: backup of %s\n"), sharename);
-	}
-
-	program->backup_name = program->restore_name = SAMBA_CLIENT;
-	cmd = g_strdup(program->backup_name);
-	info_tapeheader(dle);
-
-	start_index(dle->create_index, native_pipe[1], mesgf, indexf, indexcmd);
-
-	if (pwtext_len > 0) {
-	    pw_fd_env = "PASSWD_FD";
-	} else {
-	    pw_fd_env = "dummy_PASSWD_FD";
-	}
-	dumppid = pipespawn(cmd, STDIN_PIPE|PASSWD_PIPE, 0,
-			    &dumpin, &native_pipe[1], &mesgf,
-			    pw_fd_env, &passwdf,
-			    "smbclient",
-			    sharename,
-			    *user_and_password ? "-U" : skip_argument,
-			    *user_and_password ? user_and_password : skip_argument,
-			    "-E",
-			    domain ? "-W" : skip_argument,
-			    domain ? domain : skip_argument,
-#if SAMBA_VERSION >= 2
-			    subdir ? "-D" : skip_argument,
-			    subdir ? subdir : skip_argument,
-#endif
-			    "-d0",
-			    taropt,
-			    "-",
-			    dle->exclude_file && dle->exclude_file->nb_element == 1 ? dle->exclude_file->first->name : skip_argument,
-			    NULL);
-	if(domain) {
-	    memset(domain, '\0', strlen(domain));
-	    amfree(domain);
-	}
-	if(pwtext_len > 0 && full_write(passwdf, pwtext, pwtext_len) < pwtext_len) {
-	    int save_errno = errno;
-
-	    aclose(passwdf);
-	    memset(user_and_password, '\0', lpass);
-	    amfree(user_and_password);
-	    set_pname(error_pn);
-	    amfree(error_pn);
-	    error(_("error [password write failed: %s]"), strerror(save_errno));
-	    /*NOTREACHED*/
-	}
-	memset(user_and_password, '\0', lpass);
-	amfree(user_and_password);
-	aclose(passwdf);
-	amfree(sharename);
-	amfree(share);
-	amfree(subdir);
-	amfree(taropt);
-	tarpid = dumppid;
-    } else
-#endif			/*end of samba */
     {
 
 	int nb_exclude = 0;

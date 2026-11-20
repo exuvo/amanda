@@ -219,14 +219,8 @@ main(
     /* parse backup program name */
 
     if(g_str_equal(*argv, "DUMP")) {
-#if !defined(DUMP) && !defined(XFSDUMP)
 	error("dump not available on this system");
 	/*NOTREACHED*/
-#else
-	add_file_name = add_file_name_dump;
-	add_file = add_file_dump;
-	final_size = final_size_dump;
-#endif
     }
     else if(g_str_equal(*argv, "BSDTAR")) {
 	add_file_name = add_file_name_gnutar;

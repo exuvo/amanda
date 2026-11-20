@@ -37,9 +37,6 @@
 #include "fileheader.h"
 #include "stream.h"
 #include "tapelist.h"
-#ifdef SAMBA_CLIENT
-#include "findpass.h"
-#endif
 #include "amutil.h"
 #include "conffile.h"
 #include "protocol.h"
@@ -1941,9 +1938,6 @@ enum dumptypes {
 	IS_DUMP,
 	IS_GNUTAR,
 	IS_TAR,
-#ifdef SAMBA_CLIENT
-	IS_SAMBA,
-#endif
 	IS_SAMBA_TAR,
 	IS_APPLICATION_API
 };
@@ -1962,9 +1956,6 @@ extract_files_child(
     size_t len_program;
     char *cmd = NULL;
     guint passwd_field = 999999999;
-#ifdef SAMBA_CLIENT
-    char *domain = NULL, *smbpass = NULL;
-#endif
 
     /* code executed by child to do extraction */
     /* never returns */
@@ -2011,39 +2002,11 @@ extract_files_child(
 		dumptype = IS_TAR;
 	}
 
-#ifdef SAMBA_CLIENT
-	if (dumptype == IS_UNKNOWN && g_str_equal(ctl_data->file.program,
-                                                  SAMBA_CLIENT)) {
-	    if (samba_extract_method == SAMBA_TAR)
-	      dumptype = IS_SAMBA_TAR;
-	    else
-	      dumptype = IS_SAMBA;
-	}
-#endif
     }
 
     /* form the arguments to restore */
     files_off_tape = length_of_tape_list(ctl_data->elist);
     switch(dumptype) {
-#ifdef SAMBA_CLIENT
-    case IS_SAMBA:
-	g_ptr_array_add(argv_ptr, g_strdup("smbclient"));
-	smbpass = findpass(ctl_data->file.disk, &domain);
-	if (smbpass) {
-	    g_ptr_array_add(argv_ptr, g_strdup(ctl_data->file.disk));
-	    g_ptr_array_add(argv_ptr, g_strdup("-U"));
-	    passwd_field = argv_ptr->len;
-	    g_ptr_array_add(argv_ptr, g_strdup(smbpass));
-	    if (domain) {
-		g_ptr_array_add(argv_ptr, g_strdup("-W"));
-		g_ptr_array_add(argv_ptr, g_strdup(domain));
-	    }
-	}
-	g_ptr_array_add(argv_ptr, g_strdup("-d0"));
-	g_ptr_array_add(argv_ptr, g_strdup("-Tx"));
-	g_ptr_array_add(argv_ptr, g_strdup("-"));	/* data on stdin */
-	break;
-#endif
     case IS_TAR:
     case IS_GNUTAR:
 	g_ptr_array_add(argv_ptr, g_strdup("tar"));
@@ -2061,27 +2024,11 @@ extract_files_child(
     case IS_UNKNOWN:
     case IS_DUMP:
 	g_ptr_array_add(argv_ptr, g_strdup("restore"));
-#ifdef AIX_BACKUP
-	g_ptr_array_add(argv_ptr, g_strdup("-xB"));
-#else
-#if defined(XFSDUMP)
-	if (g_str_equal(ctl_data->file.program, XFSDUMP)) {
-	    g_ptr_array_add(argv_ptr, g_strdup("-v"));
-	    g_ptr_array_add(argv_ptr, g_strdup("silent"));
-	} else
-#endif
-#if defined(VDUMP)
-	if (g_str_equal(ctl_data->file.program, VDUMP)) {
-	    g_ptr_array_add(argv_ptr, g_strdup("xf"));
-	    g_ptr_array_add(argv_ptr, g_strdup("-"));	/* data on stdin */
-	} else
-#endif
 	{
 	g_ptr_array_add(argv_ptr, g_strdup("xbf"));
 	g_ptr_array_add(argv_ptr, g_strdup("2")); /* read in units of 1K */
 	g_ptr_array_add(argv_ptr, g_strdup("-"));	/* data on stdin */
 	}
-#endif
 	break;
     case IS_APPLICATION_API:
 	g_ptr_array_add(argv_ptr, g_strdup(ctl_data->file.application));
@@ -2148,9 +2095,6 @@ extract_files_child(
 	case IS_TAR:
 	case IS_GNUTAR:
 	case IS_SAMBA_TAR:
-#ifdef SAMBA_CLIENT
-	case IS_SAMBA:
-#endif
 	    if (g_str_equal(fn->path, "/"))
 		g_ptr_array_add(argv_ptr, g_strdup("."));
 	    else
@@ -2158,38 +2102,16 @@ extract_files_child(
 	    break;
 	case IS_UNKNOWN:
 	case IS_DUMP:
-#if defined(XFSDUMP)
-	    if (g_str_equal(ctl_data->file.program, XFSDUMP)) {
-		/*
-		 * xfsrestore needs a -s option before each file to be
-		 * restored, and also wants them to be relative paths.
-		 */
-		g_ptr_array_add(argv_ptr, g_strdup("-s"));
-		g_ptr_array_add(argv_ptr, g_strdup(fn->path + 1));
-	    } else
-#endif
 	    {
 	    g_ptr_array_add(argv_ptr, g_strdup(fn->path));
 	    }
 	    break;
 	}
     }
-#if defined(XFSDUMP)
-    if (g_str_equal(ctl_data->file.program, XFSDUMP)) {
-	g_ptr_array_add(argv_ptr, g_strdup("-"));
-	g_ptr_array_add(argv_ptr, g_strdup("."));
-    }
-#endif
     g_ptr_array_add(argv_ptr, NULL);
 
     switch (dumptype) {
-#ifdef SAMBA_CLIENT
-    case IS_SAMBA:
-	cmd = g_strdup(SAMBA_CLIENT);
-	break;
-#else
 	/* fall through to ... */
-#endif
     case IS_TAR:
     case IS_GNUTAR:
     case IS_SAMBA_TAR:
@@ -2203,26 +2125,6 @@ extract_files_child(
     case IS_UNKNOWN:
     case IS_DUMP:
 	cmd = NULL;
-#if defined(DUMP)
-	if (g_str_equal(ctl_data->file.program, DUMP)) {
-    	    cmd = g_strdup(RESTORE);
-	}
-#endif
-#if defined(VDUMP)
-	if (g_str_equal(ctl_data->file.program, VDUMP)) {
-    	    cmd = g_strdup(VRESTORE);
-	}
-#endif
-#if defined(VXDUMP)
-	if (g_str_equal(ctl_data->file.program, VXDUMP)) {
-    	    cmd = g_strdup(VXRESTORE);
-	}
-#endif
-#if defined(XFSDUMP)
-	if (g_str_equal(ctl_data->file.program, XFSDUMP)) {
-    	    cmd = g_strdup(XFSRESTORE);
-	}
-#endif
 	if (cmd == NULL) {
 	    g_fprintf(stderr, _("warning: restore program for %s not available.\n"),
 		    ctl_data->file.program);

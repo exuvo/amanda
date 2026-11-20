@@ -24,10 +24,7 @@ applicationexec_SCRIPTS_PERL = script-email \
 	     ampgsql \
 	     amzfs-sendrecv \
 	     amzfs-snapshot \
-	     amrandom \
-	     amraw \
-	     amsamba \
-	     amsuntar
+	     amraw
 
 amlibexec_PROGRAMS = teecount
 
@@ -40,7 +37,7 @@ amlibexec_PROGRAMS = teecount
 #All other user-defined prefixes are installed by install-data." (section 12.2)
 applicationexecdir = $(APPLICATION_DIR)
 applicationdir = $(APPLICATION_DIR)
-applicationexec_PROGRAMS = ambsdtar amgtar amstar
+applicationexec_PROGRAMS = amgtar
 applicationexec_SCRIPTS = $(applicationexec_SCRIPTS_PERL) $(applicationexec_SCRIPTS_SHELL)
 
 SCRIPTS_SHELL = $(applicationexec_SCRIPTS_SHELL)
@@ -57,5 +54,5 @@ LDADD = ../common-src/libamanda.la \
 
 if WANT_SETUID_CLIENT
 INSTALLPERMS_exec = dest=$(applicationdir) chown=root:setuid chmod=04750 \
-		    ambsdtar amgtar amstar
+		    amgtar
 endif

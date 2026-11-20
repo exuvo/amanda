@@ -7688,11 +7688,9 @@ validate_program(
     conf_var_t *np G_GNUC_UNUSED,
     val_t        *val)
 {
-    if (!g_str_equal(val->v.s, "DUMP") &&
-    	!g_str_equal(val->v.s, "GNUTAR") &&
-    	!g_str_equal(val->v.s, "STAR") &&
+    if (!g_str_equal(val->v.s, "GNUTAR") &&
     	!g_str_equal(val->v.s, "APPLICATION"))
-       conf_parserror("program must be \"DUMP\", \"GNUTAR\", \"STAR\" or \"APPLICATION\"");
+       conf_parserror("program must be \"GNUTAR\" or \"APPLICATION\"");
 }
 
 static void

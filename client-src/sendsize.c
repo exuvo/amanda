@@ -42,9 +42,6 @@
 #include "client_util.h"
 #include "conffile.h"
 
-#ifdef SAMBA_CLIENT
-#include "findpass.h"
-#endif
 
 #define sendsize_debug(i, ...) do {	\
 	if ((i) <= debug_sebdsize) {	\
@@ -817,12 +814,6 @@ calc_estimates(
 		dump_calc_estimates(est);
 	    else
 #endif
-#ifdef SAMBA_CLIENT
-	    if (g_str_equal(est->dle->program, "GNUTAR") &&
-		est->dle->device[0] == '/' && est->dle->device[1] == '/')
-		smbtar_calc_estimates(est);
-	    else
-#endif
 #ifdef GNUTAR
 	    if (g_str_equal(est->dle->program, "GNUTAR"))
 		gnutar_calc_estimates(est);
@@ -1259,43 +1250,6 @@ dump_calc_estimates(
     }
 }
 
-#ifdef SAMBA_CLIENT
-void
-smbtar_calc_estimates(
-    disk_estimates_t *	est)
-{
-    int level;
-    off_t size;
-    char  *errmsg = NULL, *qerrmsg;
-
-    for(level = 0; level < DUMP_LEVELS; level++) {
-	if(est->est[level].needestimate) {
-	    dbprintf(_("getting size via smbclient for %s level %d\n"),
-		      est->qamname, level);
-	    size = getsize_smbtar(est->dle, level, &errmsg);
-
-	    amflock(1, "size");
-
-	    g_printf(_("%s %d SIZE %lld\n"),
-		   est->qamname, level, (long long)size);
-	    if (errmsg && errmsg[0] != '\0') {
-		if(am_has_feature(g_options->features,
-				  fe_rep_sendsize_quoted_error)) {
-		    qerrmsg = quote_string(errmsg);
-		    dbprintf(_("errmsg is %s\n"), errmsg);
-		    g_printf("%s %d ERROR %s\n",
-			   est->qamname, level, qerrmsg);
-		    amfree(qerrmsg);
-		}
-	    }
-	    amfree(errmsg);
-	    fflush(stdout);
-
-	    amfunlock(1, "size");
-	}
-    }
-}
-#endif
 
 #ifdef GNUTAR
 void
@@ -1344,58 +1298,14 @@ typedef struct regex_scale_s {
 
 /*@ignore@*/
 regex_scale_t re_size[] = {
-#ifdef DUMP
-    {"  DUMP: estimated -*[0-9][0-9]* tape blocks", 1024},
-    {"  DUMP: [Ee]stimated [0-9][0-9]* blocks", 512},
-    {"  DUMP: [Ee]stimated [0-9][0-9]* bytes", 1},		/* Ultrix 4.4 */
-    {" UFSDUMP: estimated [0-9][0-9]* blocks", 512},		/* NEC EWS-UX */
-    {"dump: Estimate: [0-9][0-9]* tape blocks", 1024},		    /* OSF/1 */
-    {"backup: There are an estimated [0-9][0-9]* tape blocks.",1024}, /* AIX */
-    {"backup: estimated [0-9][0-9]* 1k blocks", 1024},		      /* AIX */
-    {"backup: estimated [0-9][0-9]* tape blocks", 1024},	      /* AIX */
-    {"backup: [0-9][0-9]* tape blocks on [0-9][0-9]* tape(s)",1024},  /* AIX */
-    {"backup: [0-9][0-9]* 1k blocks on [0-9][0-9]* volume(s)",1024},  /* AIX */
-    {"dump: Estimate: [0-9][0-9]* blocks being output to pipe",1024},
-							      /* DU 4.0 dump  */
-    {"dump: Dumping [0-9][0-9]* bytes, ", 1},		      /* DU 4.0 vdump */
-    {"DUMP: estimated [0-9][0-9]* KB output", 1024},		      /* HPUX */
-    {"DUMP: estimated [0-9][0-9]* KB\\.", 1024},		    /* NetApp */
-    {"  UFSDUMP: estimated [0-9][0-9]* blocks", 512},		     /* Sinix */
 
-#ifdef HAVE_DUMP_ESTIMATE
-    {"[0-9][0-9]* blocks, [0-9][0-9]*.[0-9][0-9]* volumes", 1024},
-							   /* DU 3.2g dump -E */
-    {"^[0-9][0-9]* blocks$", 1024},			   /* DU 4.0 dump  -E */
-    {"^[0-9][0-9]*$", 1},				/* Solaris ufsdump -S */
-#endif
-#endif
-
-#ifdef VDUMP
-    {"vdump: Dumping [0-9][0-9]* bytes, ", 1},		       /* OSF/1 vdump */
-#endif
     
-#ifdef VXDUMP
-    {"vxdump: estimated [0-9][0-9]* blocks", 512},	     /* HPUX's vxdump */
-    {"  VXDUMP: estimated [0-9][0-9]* blocks", 512},		     /* Sinix */
-#endif
 
-#ifdef XFSDUMP
-    {"xfsdump: estimated dump size: [0-9][0-9]* bytes", 1},  /* Irix 6.2 xfs */
-#endif
 
 #ifdef GNUTAR
     {"Total bytes written: [0-9][0-9]*", 1},		    /* Gnutar client */
 #endif
 
-#ifdef SAMBA_CLIENT
-#if SAMBA_VERSION >= 2
-#define SAMBA_DEBUG_LEVEL "0"
-    {"Total number of bytes: [0-9][0-9]*", 1},			 /* Samba du */
-#else
-#define SAMBA_DEBUG_LEVEL "3"
-    {"Total bytes listed: [0-9][0-9]*", 1},			/* Samba dir */
-#endif
-#endif
 
     { NULL, 0 }
 };
@@ -1426,9 +1336,6 @@ getsize_dump(
     char *config;
     char **env;
     amwait_t wait_status;
-#if defined(DUMP) || defined(VDUMP) || defined(VXDUMP) || defined(XFSDUMP)
-    int is_rundump = 1;
-#endif
 
     if (level > 9)
 	return -2; /* planner will not even consider this level */
@@ -1476,106 +1383,6 @@ getsize_dump(
 	return(-1);
     }
 
-#ifdef XFSDUMP						/* { */
-#ifdef DUMP						/* { */
-    if (g_str_equal(fstype, "xfs"))
-#else							/* } { */
-    if (1)
-#endif							/* } */
-    {
-	name = g_strdup(" (xfsdump)");
-	dbprintf(_("running \"%s%s -F -J -l %s - %s\"\n"),
-		  cmd, name, level_str, qdevice);
-    }
-    else
-#endif							/* } */
-#ifdef VXDUMP						/* { */
-#ifdef DUMP						/* { */
-    if (g_str_equal(fstype, "vxfs"))
-#else							/* } { */
-    if (1)
-#endif							/* } */
-    {
-#ifdef USE_RUNDUMP
-	name = g_strdup(" (vxdump)");
-#else
-	name = g_strdup("");
-	g_free(cmd);
-	cmd = g_strdup(VXDUMP);
-	config = skip_argument;
-	is_rundump = 0;
-#endif
-	dumpkeys = g_strjoin(NULL, level_str, "s", "f", NULL);
-	dbprintf(_("running \"%s%s %s 1048576 - %s\"\n"),
-		  cmd, name, dumpkeys, qdevice);
-    }
-    else
-#endif							/* } */
-#ifdef VDUMP						/* { */
-#ifdef DUMP						/* { */
-    if (g_str_equal(fstype, "advfs"))
-#else							/* } { */
-    if (1)
-#endif							/* } */
-    {
-	name = g_strdup(" (vdump)");
-	dumpkeys = g_strjoin(NULL, level_str, "b", "f", NULL);
-	dbprintf(_("running \"%s%s %s 60 - %s\"\n"),
-		  cmd, name, dumpkeys, qdevice);
-    }
-    else
-#endif							/* } */
-#ifdef DUMP						/* { */
-    if (1) {
-# ifdef USE_RUNDUMP					/* { */
-#  ifdef AIX_BACKUP					/* { */
-	name = g_strdup(" (backup)");
-#  else							/* } { */
-	name = g_strjoin(NULL, " (", DUMP, ")", NULL);
-#  endif						/* } */
-# else							/* } { */
-	name = g_strdup("");
-	g_free(cmd);
-	cmd = g_strdup(DUMP);
-        config = skip_argument;
-	is_rundump = 0;
-# endif							/* } */
-
-# ifdef AIX_BACKUP					/* { */
-	dumpkeys = g_strjoin(NULL, "-", level_str, "f", NULL);
-	dbprintf(_("running \"%s%s %s - %s\"\n"),
-		  cmd, name, dumpkeys, qdevice);
-# else							/* } { */
-#  ifdef HAVE_DUMP_ESTIMATE
-#    define PARAM_DUMP_ESTIMATE HAVE_DUMP_ESTIMATE
-#  else
-#    define PARAM_DUMP_ESTIMATE ""
-#  endif
-#  ifdef HAVE_HONOR_NODUMP
-#    define PARAM_HONOR_NODUMP "h"
-#  else
-#    define PARAM_HONOR_NODUMP ""
-#  endif
-	dumpkeys = g_strjoin(NULL, level_str,
-			     PARAM_DUMP_ESTIMATE,
-			     PARAM_HONOR_NODUMP,
-			     "s", "f", NULL);
-
-#  ifdef HAVE_DUMP_ESTIMATE
-	stdoutfd = pipefd[1];
-#  endif
-
-#  ifdef HAVE_HONOR_NODUMP				/* { */
-	dbprintf(_("running \"%s%s %s 0 1048576 - %s\"\n"),
-		  cmd, name, dumpkeys, qdevice);
-#  else							/* } { */
-	dbprintf(_("running \"%s%s %s 1048576 - %s\"\n"),
-		  cmd, name, dumpkeys, qdevice);
-#  endif						/* } */
-# endif							/* } */
-    }
-    else
-#endif							/* } */
     {
 	error(_("no dump program available"));
 	/*NOTREACHED*/
@@ -1652,74 +1459,6 @@ getsize_dump(
 	safe_fd(-1, 0);
 	env = safe_env();
 
-#ifdef XFSDUMP
-#ifdef DUMP
-	if (g_str_equal(fstype, "xfs")) {
-#else
-	if (1) {
-#endif
-	    if (is_rundump)
-		execle(cmd, "rundump", config, "xfsdump", "-F", "-J", "-l",
-		       level_str, "-", device, (char *)0, env);
-	    else
-		execle(cmd, "xfsdump", "-F", "-J", "-l",
-		       level_str, "-", device, (char *)0, env);
-	} else
-#endif
-#ifdef VXDUMP
-#ifdef DUMP
-	if (g_str_equal(fstype, "vxfs")) {
-#else
-	if (1) {
-#endif
-	    if (is_rundump)
-		execle(cmd, "rundump", config, "vxdump", dumpkeys, "1048576",
-		       "-", device, (char *)0, env);
-	    else
-		execle(cmd, "vxdump", dumpkeys, "1048576", "-",
-		       device, (char *)0, env);
-	} else
-#endif
-#ifdef VDUMP
-#ifdef DUMP
-	if (g_str_equal(fstype, "advfs")) {
-#else
-	if (1) {
-#endif
-	    if (is_rundump)
-		execle(cmd, "rundump", config, "vdump", dumpkeys, "60", "-",
-		       device, (char *)0, env);
-	    else
-		execle(cmd, "vdump", dumpkeys, "60", "-",
-		       device, (char *)0, env);
-	} else
-#endif
-#ifdef DUMP
-	if (1) {
-# ifdef AIX_BACKUP
-	    if (is_rundump)
-		execle(cmd, "rundump", config, "backup", dumpkeys, "-",
-		       device, (char *)0, env);
-	    else
-		execle(cmd, "backup", dumpkeys, "-",
-		       device, (char *)0, env);
-# else
-	    if (is_rundump) {
-		execle(cmd, "rundump", config, "dump", dumpkeys,
-#ifdef HAVE_HONOR_NODUMP
-		       "0",
-#endif
-		       "1048576", "-", device, (char *)0, env);
-	    } else {
-		execle(cmd, "dump", dumpkeys,
-#ifdef HAVE_HONOR_NODUMP
-		       "0",
-#endif
-		       "1048576", "-", device, (char *)0, env);
-	    }
-# endif
-	} else
-#endif
 	{
 	    free_env(env);
 	    error(_("exec %s failed or no dump program available: %s"),
@@ -1855,244 +1594,6 @@ getsize_dump(
     return size;
 }
 
-#ifdef SAMBA_CLIENT
-off_t
-getsize_smbtar(
-    dle_t      *dle,
-    int		level,
-    char      **errmsg)
-{
-    int pipefd = -1, nullfd = -1, passwdfd = -1;
-    pid_t dumppid;
-    off_t size;
-    FILE *dumpout;
-    char *tarkeys, *sharename, *user_and_password = NULL, *domain = NULL;
-    char *share = NULL, *subdir = NULL;
-    size_t lpass;
-    char *pwtext;
-    size_t pwtext_len;
-    char *line;
-    char *pw_fd_env;
-    times_t start_time;
-    char *error_pn = NULL;
-    char *qdisk;
-    amwait_t wait_status;
-
-    if (level > 1) {
-	return -2; /* planner will not even consider this level */
-    }
-
-    error_pn = g_strconcat(get_pname(), "-smbclient", NULL);
-    qdisk = quote_string(dle->disk);
-    parsesharename(dle->device, &share, &subdir);
-    if (!share) {
-	amfree(share);
-	amfree(subdir);
-	set_pname(error_pn);
-	amfree(error_pn);
-	error(_("cannot parse disk entry %s for share/subdir"), qdisk);
-	/*NOTREACHED*/
-    }
-    if ((subdir) && (SAMBA_VERSION < 2)) {
-	amfree(share);
-	amfree(subdir);
-	set_pname(error_pn);
-	amfree(error_pn);
-	error(_("subdirectory specified for share %s but samba not v2 or better"), qdisk);
-	/*NOTREACHED*/
-    }
-    if ((user_and_password = findpass(share, &domain)) == NULL) {
-
-	if(domain) {
-	    memset(domain, '\0', strlen(domain));
-	    amfree(domain);
-	}
-	set_pname(error_pn);
-	amfree(error_pn);
-	error(_("cannot find password for %s"), dle->disk);
-	/*NOTREACHED*/
-    }
-    lpass = strlen(user_and_password);
-    if ((pwtext = strchr(user_and_password, '%')) == NULL) {
-	memset(user_and_password, '\0', (size_t)lpass);
-	amfree(user_and_password);
-	if(domain) {
-	    memset(domain, '\0', strlen(domain));
-	    amfree(domain);
-	}
-	set_pname(error_pn);
-	amfree(error_pn);
-	error(_("password field not \'user%%pass\' for %s"), dle->disk);
-	/*NOTREACHED*/
-    }
-    *pwtext++ = '\0';
-    pwtext_len = strlen(pwtext);
-    if ((sharename = makesharename(share, 0)) == NULL) {
-	memset(user_and_password, '\0', (size_t)lpass);
-	amfree(user_and_password);
-	if(domain) {
-	    memset(domain, '\0', strlen(domain));
-	    amfree(domain);
-	}
-	set_pname(error_pn);
-	amfree(error_pn);
-	error(_("cannot make share name of %s"), share);
-	/*NOTREACHED*/
-    }
-    if ((nullfd = open("/dev/null", O_RDWR)) == -1) {
-	memset(user_and_password, '\0', (size_t)lpass);
-	amfree(user_and_password);
-	if(domain) {
-	    memset(domain, '\0', strlen(domain));
-	    amfree(domain);
-	}
-	set_pname(error_pn);
-	amfree(error_pn);
-	amfree(sharename);
-	error(_("could not open /dev/null: %s\n"),
-	      strerror(errno));
-	/*NOTREACHED*/
-    }
-
-#if SAMBA_VERSION >= 2
-    if (level == 0)
-	tarkeys = "archive 0;recurse;du";
-    else
-	tarkeys = "archive 1;recurse;du";
-#else
-    if (level == 0)
-	tarkeys = "archive 0;recurse;dir";
-    else
-	tarkeys = "archive 1;recurse;dir";
-#endif
-
-    start_time = curclock();
-
-    if (pwtext_len > 0) {
-	pw_fd_env = "PASSWD_FD";
-    } else {
-	pw_fd_env = "dummy_PASSWD_FD";
-    }
-    dumppid = pipespawn(SAMBA_CLIENT, STDERR_PIPE|PASSWD_PIPE, 0,
-	      &nullfd, &nullfd, &pipefd, 
-	      pw_fd_env, &passwdfd,
-	      "smbclient",
-	      sharename,
-	      "-d", SAMBA_DEBUG_LEVEL,
-	      *user_and_password ? "-U" : skip_argument,
-	      *user_and_password ? user_and_password : skip_argument,
-	      "-E",
-	      domain ? "-W" : skip_argument,
-	      domain ? domain : skip_argument,
-#if SAMBA_VERSION >= 2
-	      subdir ? "-D" : skip_argument,
-	      subdir ? subdir : skip_argument,
-#endif
-	      "-c", tarkeys,
-	      NULL);
-    if(domain) {
-	memset(domain, '\0', strlen(domain));
-	amfree(domain);
-    }
-    aclose(nullfd);
-    if(pwtext_len > 0 && full_write(passwdfd, pwtext, pwtext_len) < pwtext_len) {
-	int save_errno = errno;
-
-	memset(user_and_password, '\0', (size_t)lpass);
-	amfree(user_and_password);
-	aclose(passwdfd);
-	set_pname(error_pn);
-	amfree(error_pn);
-	error(_("password write failed: %s"), strerror(save_errno));
-	/*NOTREACHED*/
-    }
-    memset(user_and_password, '\0', (size_t)lpass);
-    amfree(user_and_password);
-    aclose(passwdfd);
-    amfree(sharename);
-    amfree(share);
-    amfree(subdir);
-    amfree(error_pn);
-    dumpout = fdopen(pipefd,"r");
-    if (!dumpout) {
-	error(_("Can't fdopen: %s"), strerror(errno));
-	/*NOTREACHED*/
-    }
-
-    for(size = (off_t)-1; (line = pgets(dumpout)) != NULL; free(line)) {
-	if (line[0] == '\0')
-	    continue;
-	dbprintf("%s\n", line);
-	size = handle_dumpline(line);
-	if(size > -1) {
-	    amfree(line);
-	    while ((line = pgets(dumpout)) != NULL) {
-	        if (line[0] != '\0')
-		    break;
-		amfree(line);
-	    }
-	    if(line != NULL) {
-		dbprintf("%s\n", line);
-	    }
-	    break;
-	}
-    }
-    amfree(line);
-
-    dbprintf(".....\n");
-    dbprintf(_("estimate time for %s level %d: %s\n"),
-	      qdisk,
-	      level,
-	      walltime_str(timessub(curclock(), start_time)));
-    if(size == (off_t)-1) {
-	*errmsg = g_strdup_printf(_("no size line match in %s output"),
-			     SAMBA_CLIENT);
-	dbprintf(_("%s for %s\n"),
-		  *errmsg, qdisk);
-	dbprintf(".....\n");
-    } else if(size == (off_t)0 && level == 0) {
-	dbprintf(_("possible %s problem -- is \"%s\" really empty?\n"),
-		  SAMBA_CLIENT, dle->disk);
-	dbprintf(".....\n");
-    }
-    dbprintf(_("estimate size for %s level %d: %lld KB\n"),
-	      qdisk,
-	      level,
-	      (long long)size);
-
-    (void)kill(-dumppid, SIGTERM);
-
-    dbprintf(_("waiting for %s \"%s\" child\n"), SAMBA_CLIENT, qdisk);
-    waitpid(dumppid, &wait_status, 0);
-    if (WIFSIGNALED(wait_status)) {
-	amfree(*errmsg);
-	*errmsg = g_strdup_printf(_("%s terminated with signal %d: see %s"),
-			     SAMBA_CLIENT, WTERMSIG(wait_status), dbfn());
-    } else if (WIFEXITED(wait_status)) {
-	if (WEXITSTATUS(wait_status) != 0) {
-	    amfree(*errmsg);
-	    *errmsg = g_strdup_printf(_("%s exited with status %d: see %s"),
-				 SAMBA_CLIENT, WEXITSTATUS(wait_status),
-				 dbfn());
-	} else {
-	    /* Normal exit */
-	}
-    } else {
-	amfree(*errmsg);
-	*errmsg = g_strdup_printf(_("%s got bad exit: see %s"),
-			     SAMBA_CLIENT, dbfn());
-    }
-    dbprintf(_("after %s %s wait\n"), SAMBA_CLIENT, qdisk);
-
-    afclose(dumpout);
-    pipefd = -1;
-
-    amfree(error_pn);
-    amfree(qdisk);
-
-    return size;
-}
-#endif
 
 #ifdef GNUTAR
 off_t

@@ -922,13 +922,4 @@ set_storage(void)
 void
 show_mode(void)
 {
-#ifdef SAMBA_CLIENT
-  g_printf (_("SAMBA dumps are extracted "));
-
-  if (samba_extract_method == SAMBA_TAR) {
-    g_printf (_(" as TAR dumps\n"));
-  } else {
-    g_printf (_("using smbclient\n"));
-  }
-#endif /* SAMBA_CLIENT */
 }

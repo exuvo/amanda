@@ -99,10 +99,6 @@ security_file_check_path(
     if (!found) { /* accept the configured path */
 	if ((strcmp(iprefix,"amgtar:gnutar_path") == 0 &&
 	     strcmp(path,GNUTAR) == 0) ||
-	    (strcmp(iprefix,"ambsdtar:bsdtar_path") == 0 &&
-	     strcmp(path,BSDTAR) == 0) ||
-	    (strcmp(iprefix,"amstar:star_path") == 0 &&
-	     strcmp(path,STAR) == 0) ||
 	    (strcmp(iprefix,"runtar:gnutar_path") == 0 &&
 	     strcmp(path,GNUTAR) == 0)) {
 	    g_free(iprefix);

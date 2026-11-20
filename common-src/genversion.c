@@ -248,43 +248,19 @@ main(
     prundefvar("DEV_PREFIX");
 #endif
 
-#ifdef DUMP
-    prvar("DUMP", DUMP);
-    prvar("RESTORE", RESTORE);
-#else
     prundefvar("DUMP");
     prundefvar("RESTORE");
-#endif
 
-#ifdef VDUMP
-    prvar("VDUMP", VDUMP);
-    prvar("VRESTORE", VRESTORE);
-#else
     prundefvar("VDUMP");
     prundefvar("VRESTORE");
-#endif
 
-#ifdef XFSDUMP
-    prvar("XFSDUMP", XFSDUMP);
-    prvar("XFSRESTORE", XFSRESTORE);
-#else
     prundefvar("XFSDUMP");
     prundefvar("XFSRESTORE");
-#endif
 
-#ifdef VXDUMP
-    prvar("VXDUMP", VXDUMP);
-    prvar("VXRESTORE", VXRESTORE);
-#else
     prundefvar("VXDUMP");
     prundefvar("VXRESTORE");
-#endif
 
-#ifdef SAMBA_CLIENT
-    prvar("SAMBA_CLIENT", SAMBA_CLIENT);
-#else
     prundefvar("SAMBA_CLIENT");
-#endif
 
 #ifdef GNUTAR
     prvar("GNUTAR", GNUTAR);
@@ -333,17 +309,11 @@ main(
     prvar("DEFAULT_TAPE_DEVICE", DEFAULT_TAPE_DEVICE);
 #endif
 
-#ifdef AIX_BACKUP
-    prstr("AIX_BACKUP");
-#endif
 
 #ifdef BROKEN_VOID
     prstr("BROKEN_VOID");
 #endif
 
-#ifdef DUMP_RETURNS_1
-    prstr("DUMP_RETURNS_1");
-#endif
 
 #ifdef HAVE_MMAP
     prstr("HAVE_MMAP");
@@ -398,9 +368,6 @@ main(
     prnum("AMANDA_DEBUG_DAYS", AMANDA_DEBUG_DAYS);
 #endif
 
-#ifdef USE_RUNDUMP
-    prstr("USE_RUNDUMP");
-#endif
 
     prvar("CLIENT_LOGIN", CLIENT_LOGIN);
 
