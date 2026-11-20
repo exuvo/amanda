@@ -62,6 +62,7 @@ typedef struct EXTRACT_LIST {
     char *tape;			/* tape label */
     off_t fileno;		/* fileno on tape */
     EXTRACT_LIST_ITEM *files;	/* files to get off tape */
+    GHashTable *file_set;	/* path -> item in files, for duplicate checks */
 
     struct EXTRACT_LIST *next;
 }
@@ -334,6 +335,8 @@ clear_tape_list(
 	this = next;
     }
     tape_list->files = NULL;
+    if (tape_list->file_set)
+	g_hash_table_remove_all(tape_list->file_set);
 }
 
 
@@ -353,6 +356,8 @@ delete_tape_list(
     {
 	extract_list = tape_list->next;
 	clear_tape_list(tape_list);
+	if (tape_list->file_set)
+	    g_hash_table_destroy(tape_list->file_set);
         amfree(tape_list->date);
         amfree(tape_list->tape);
 	amfree(tape_list);
@@ -368,6 +373,8 @@ delete_tape_list(
 	{
 	    prev->next = tape_list->next;
 	    clear_tape_list(tape_list);
+	    if (tape_list->file_set)
+	        g_hash_table_destroy(tape_list->file_set);
             amfree(tape_list->date);
             amfree(tape_list->tape);
 	    amfree(tape_list);
@@ -404,74 +411,106 @@ clear_extract_list(void)
 }
 
 
+/* qsort helper: shorter paths first */
+static gint
+compare_item_path_length(
+    gconstpointer a,
+    gconstpointer b)
+{
+    size_t la = strlen((*(EXTRACT_LIST_ITEM * const *)a)->path);
+    size_t lb = strlen((*(EXTRACT_LIST_ITEM * const *)b)->path);
+
+    return (la > lb) - (la < lb);
+}
+
+/* TRUE if path, or a directory above it, is in kept */
+static gboolean
+path_is_covered(
+    GHashTable *kept,
+    const char *path)
+{
+    size_t   len = strlen(path);
+    size_t   i;
+    char    *buf;
+    gboolean covered = FALSE;
+
+    if (g_hash_table_contains(kept, path))
+	return TRUE;
+
+    buf = g_malloc(len + 1);
+    for (i = 0; i < len && !covered; i++) {
+	if (path[i] != '/')
+	    continue;
+	/* "dir" covers "dir/..." */
+	if (i > 0) {
+	    memcpy(buf, path, i);
+	    buf[i] = '\0';
+	    covered = g_hash_table_contains(kept, buf);
+	}
+	/* "dir/" covers "dir/..." */
+	if (!covered) {
+	    memcpy(buf, path, i + 1);
+	    buf[i + 1] = '\0';
+	    covered = g_hash_table_contains(kept, buf);
+	}
+    }
+    g_free(buf);
+    return covered;
+}
+
+/*
+ * Remove entries that are duplicates of, or inside, another entry on the
+ * same tape list.  Entries are checked shortest first against a hash of the
+ * entries kept so far, instead of comparing every pair.
+ */
 void
 clean_tape_list(
     EXTRACT_LIST *tape_list)
 {
-    EXTRACT_LIST_ITEM *fn1, *pfn1, *ofn1;
-    EXTRACT_LIST_ITEM *fn2, *pfn2, *ofn2;
-    int remove_fn1;
-    int remove_fn2;
+    GPtrArray         *items = g_ptr_array_new();
+    GHashTable        *kept = g_hash_table_new(g_str_hash, g_str_equal);
+    GHashTable        *removed = g_hash_table_new(g_direct_hash, g_direct_equal);
+    EXTRACT_LIST_ITEM *fn, *prev, *next;
+    guint              i;
 
-    pfn1 = NULL;
-    fn1 = tape_list->files;
-    while (fn1 != NULL) {
-	remove_fn1 = 0;
+    for (fn = tape_list->files; fn != NULL; fn = fn->next)
+	g_ptr_array_add(items, fn);
+    g_ptr_array_sort(items, compare_item_path_length);
 
-	pfn2 = fn1;
-	fn2 = fn1->next;
-	while (fn2 != NULL && remove_fn1 == 0) {
-	    remove_fn2 = 0;
-	    if(g_str_equal(fn1->path, fn2->path)) {
-		remove_fn2 = 1;
-	    } else if (g_str_has_prefix(fn2->path, fn1->path) &&
-		       ((strlen(fn2->path) > strlen(fn1->path) &&
-			 fn2->path[strlen(fn1->path)] == '/') ||
-		       (fn1->path[strlen(fn1->path)-1] == '/'))) {
-		remove_fn2 = 1;
-	    } else if (g_str_has_prefix(fn1->path, fn2->path) &&
-		       ((strlen(fn1->path) > strlen(fn2->path) &&
-			 fn1->path[strlen(fn2->path)] == '/')  ||
-		       (fn2->path[strlen(fn2->path)-1] == '/'))) {
-		remove_fn1 = 1;
-		break;
-	    }
-
-	    if (remove_fn2) {
-		dbprintf(_("removing path %s, it is included in %s\n"),
-			  fn2->path, fn1->path);
-		ofn2 = fn2;
-		fn2 = fn2->next;
-		amfree(ofn2->path);
-		amfree(ofn2->tpath);
-		amfree(ofn2);
-		pfn2->next = fn2;
-	    } else if (remove_fn1 == 0) {
-		pfn2 = fn2;
-		fn2 = fn2->next;
-	    }
-	}
-
-	if(remove_fn1 != 0) {
-	    /* fn2->path is always valid */
-	    /*@i@*/ dbprintf(_("removing path %s, it is included in %s\n"),
-	    /*@i@*/	      fn1->tpath, fn2->tpath);
-	    ofn1 = fn1;
-	    fn1 = fn1->next;
-	    amfree(ofn1->path);
-	    amfree(ofn1->tpath);
-	    if(pfn1 == NULL) {
-		amfree(tape_list->files);
-		tape_list->files = fn1;
-	    } else {
-		amfree(pfn1->next);
-		pfn1->next = fn1;
-	    }
+    for (i = 0; i < items->len; i++) {
+	fn = g_ptr_array_index(items, i);
+	if (path_is_covered(kept, fn->path)) {
+	    dbprintf(_("removing path %s, it is included in another selected path\n"),
+		     fn->path);
+	    g_hash_table_add(removed, fn);
 	} else {
-	    pfn1 = fn1;
-	    fn1 = fn1->next;
+	    g_hash_table_add(kept, fn->path);
 	}
     }
+
+    /* unlink the removed entries, keeping the order of the rest */
+    prev = NULL;
+    for (fn = tape_list->files; fn != NULL; fn = next) {
+	next = fn->next;
+	if (g_hash_table_contains(removed, fn)) {
+	    if (prev)
+		prev->next = next;
+	    else
+		tape_list->files = next;
+	    if (tape_list->file_set &&
+		g_hash_table_lookup(tape_list->file_set, fn->path) == fn)
+		g_hash_table_remove(tape_list->file_set, fn->path);
+	    amfree(fn->path);
+	    amfree(fn->tpath);
+	    amfree(fn);
+	} else {
+	    prev = fn;
+	}
+    }
+
+    g_hash_table_destroy(removed);
+    g_hash_table_destroy(kept);
+    g_ptr_array_free(items, TRUE);
 }
 
 
@@ -642,7 +681,7 @@ add_extract_item(
     DIR_ITEM *ditem)
 {
     EXTRACT_LIST *this, *this1;
-    EXTRACT_LIST_ITEM *that, *curr;
+    EXTRACT_LIST_ITEM *that;
     char *ditem_path;
 
     ditem_path = g_strdup(ditem->path);
@@ -655,20 +694,16 @@ add_extract_item(
                                                        ditem->tape))
 	{
 	    /* yes, so add to list */
-	    curr=this->files;
-	    while(curr!=NULL)
-	    {
-		if (g_str_equal(curr->path, ditem_path)) {
-		    g_free(ditem_path);
-		    return 1;
-		}
-		curr=curr->next;
+	    if (g_hash_table_contains(this->file_set, ditem_path)) {
+		g_free(ditem_path);
+		return 1;
 	    }
 	    that = (EXTRACT_LIST_ITEM *)g_malloc(sizeof(EXTRACT_LIST_ITEM));
             that->path = ditem_path;
             that->tpath = clean_pathname(g_strdup(ditem->tpath));
 	    that->next = this->files;
 	    this->files = that;		/* add at front since easiest */
+	    g_hash_table_insert(this->file_set, that->path, that);
 	    return 0;
 	}
     }
@@ -684,6 +719,8 @@ add_extract_item(
     that->tpath = clean_pathname(g_strdup(ditem->tpath));
     that->next = NULL;
     this->files = that;
+    this->file_set = g_hash_table_new(g_str_hash, g_str_equal);
+    g_hash_table_insert(this->file_set, that->path, that);
 
     /* add this in date increasing order          */
     /* because restore must be done in this order */
@@ -737,6 +774,7 @@ delete_extract_item(
 	    {
 		/* first on list */
 		this->files = that->next;
+		g_hash_table_remove(this->file_set, that->path);
                 amfree(that->path);
                 amfree(that->tpath);
 		amfree(that);
@@ -753,6 +791,7 @@ delete_extract_item(
 		if (g_str_equal(that->path, ditem_path))
 		{
 		    prev->next = that->next;
+		    g_hash_table_remove(this->file_set, that->path);
                     amfree(that->path);
                     amfree(that->tpath);
 		    amfree(that);
