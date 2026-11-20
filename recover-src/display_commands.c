@@ -198,18 +198,55 @@ list_all(void)
 }
 
 
+/* last component of a path, ignoring a trailing '/' (newly allocated) */
+static char *
+path_basename(
+    const char *path)
+{
+    size_t len = strlen(path);
+    const char *start;
+
+    if (len > 1 && path[len - 1] == '/')
+	len--;
+    start = path + len;
+    while (start > path && start[-1] != '/')
+	start--;
+    return g_strndup(start, len - (start - path));
+}
+
+/* mount_point + path (relative to the mount point), with single slashes */
+static char *
+mount_point_path(
+    const char *path)
+{
+    char *abs = g_strconcat(mount_point, "/", path, NULL);
+    char *r, *w;
+
+    for (r = w = abs; *r != '\0'; r++) {
+	if (*r == '/' && w > abs && w[-1] == '/')
+	    continue;
+	*w++ = *r;
+    }
+    *w = '\0';
+    return abs;
+}
+
+
+/*
+ * Recursively list files below dir (an absolute path including the mount
+ * point, in the server's raw form) whose name matches name: a regular
+ * expression if re, else an exact name.  Names are matched and shown
+ * translated, but directories are entered by their raw paths.
+ */
 void
 list_all_file(char *dir, char *name, int re)
 {
     DIR_ITEM *item;
-    char *quote;
-    int size = 5;
-    int nb_folder = 0;
-    char **dir_list;
-    char *next_dir;
-    int i;
-    int len;
-    int dir_len;
+    GPtrArray *subdirs;
+    char *base;
+    char *quoted;
+    guint i;
+    size_t len;
     int printed = 0;
 
     if (disk_path == NULL) {
@@ -217,56 +254,40 @@ list_all_file(char *dir, char *name, int re)
         return;
     }
 
-    dir_list = g_malloc0(sizeof(char *) * size);
+    if (set_directory(dir, 0) != 1)
+	return;
 
-    if (set_directory(dir, 0) == 1) {
-        dir_len = strlen(disk_tpath);
-        if (dir_len == 1)
-            dir_len = 0;
-        for (item = get_dir_list(); item != NULL; item = get_next_dir_item(item)) {
-            quote = quote_string(item->tpath + 1);
-            i = 0;
-            if (quote[strlen(quote) - 1] == '\"') {
-                quote++;
-                quote[strlen(quote) - 1] = '\0';
-                i = 1;
-            }
-            len = strlen(quote);
-            if (quote[len - 1] == '/') {
-                if (dir[strlen(dir) - 1] == '/') {
-                    next_dir = g_strconcat(dir, &quote[dir_len], NULL);
-                } else {
-                    next_dir = g_strconcat(dir, "/", &quote[dir_len], NULL);
-                }
-                dir_list[nb_folder] = next_dir;
-                nb_folder++;
-                if (nb_folder == size) {
-                    size *= 2;
-                    dir_list = g_realloc(dir_list, sizeof(char *) * size);
-                    for (int j = size/2; j < size; j++) {
-                        dir_list[j] = NULL;
-                    }
-                }
-            } else {
-                if ((re && (match(name, &quote[dir_len]) == 1)) || (!re && (strcmp(name, &quote[dir_len]) == 0))) {
-                    if (!printed) {
-                        printed = 1;
-                        g_printf("\nFolder: %s\n", dir);
-                    }
-                    g_printf("%s: %s\n", item->date, quote);
-                }
-            }
-            quote -= i;
-            amfree(quote);
-        }
-        i = 0;
-        while ((i < size) && (dir_list[i] != NULL)) {
-            list_all_file(dir_list[i], name, re);
-            amfree(dir_list[i]);
-            i++;
-        }
+    subdirs = g_ptr_array_new();
+    for (item = get_dir_list(); item != NULL; item = get_next_dir_item(item)) {
+	len = strlen(item->path);
+	/* the entry for the directory itself */
+	if (len >= 2 && g_str_equal(item->path + len - 2, "/."))
+	    continue;
+
+	if (len > 0 && item->path[len - 1] == '/') {
+	    g_ptr_array_add(subdirs, mount_point_path(item->path));
+	} else {
+	    base = path_basename(item->tpath);
+	    if ((re && match(name, base) == 1) ||
+		(!re && g_str_equal(name, base))) {
+		if (!printed) {
+		    printed = 1;
+		    g_printf("\nFolder: %s\n", disk_tpath);
+		}
+		quoted = quote_string(item->tpath);
+		g_printf("%s: %s\n", item->date, quoted);
+		amfree(quoted);
+	    }
+	    amfree(base);
+	}
     }
-    amfree(dir_list);
+
+    /* the dir list is replaced by each set_directory(), so recurse after */
+    for (i = 0; i < subdirs->len; i++) {
+	list_all_file(g_ptr_array_index(subdirs, i), name, re);
+	g_free(g_ptr_array_index(subdirs, i));
+    }
+    g_ptr_array_free(subdirs, TRUE);
 }
 
 
@@ -276,6 +297,7 @@ find_file(char *name, char *dir, int re)
     char *error = NULL;
     char *regex = NULL;
     char *abs_dir = NULL;
+    char *rel;
     char *cwd;
 
     if (disk_path == NULL) {
@@ -288,18 +310,21 @@ find_file(char *name, char *dir, int re)
         dir = &dir[1];
         dir[strlen(dir) - 1] = '\0';
     }
-    if (!g_str_has_prefix(dir, mount_point)) {
-        if (dir[0] != '/') {
-            if (disk_tpath[strlen(disk_tpath) - 1] == '/') {
-                abs_dir = g_strconcat(mount_point, disk_tpath, dir, NULL);
-            } else {
-                abs_dir = g_strconcat(mount_point, disk_tpath, "/", dir, NULL);
-            }
-        } else {
-            abs_dir = g_strconcat(mount_point, dir, NULL);
-        }
-        dir = abs_dir;
+
+    /* absolute path, in raw form, of where to start */
+    if (dir[0] == '\0' || g_str_equal(dir, ".")) {
+	abs_dir = mount_point_path(disk_path);
+    } else if (dir[0] == '/') {
+	if (!g_str_equal(mount_point, "/") && g_str_has_prefix(dir, mount_point))
+	    abs_dir = mount_point_path(dir + strlen(mount_point));
+	else
+	    abs_dir = mount_point_path(dir);
+    } else {
+	rel = g_strconcat(disk_path, "/", dir, NULL);
+	abs_dir = mount_point_path(rel);
+	g_free(rel);
     }
+    dir = abs_dir;
 
     name = convert_name(name);
     if (re == 1) {
