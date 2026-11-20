@@ -43,27 +43,6 @@
        }				\
 } while (0)
 
-#ifdef BSD_SECURITY
-extern const security_driver_t bsd_security_driver;
-#endif
-#ifdef KRB5_SECURITY
-extern const security_driver_t krb5_security_driver;
-#endif
-#ifdef RSH_SECURITY
-extern const security_driver_t rsh_security_driver;
-#endif
-#ifdef SSH_SECURITY
-extern const security_driver_t ssh_security_driver;
-#endif
-#ifdef BSDTCP_SECURITY
-extern const security_driver_t bsdtcp_security_driver;
-#endif
-#ifdef SSL_SECURITY
-extern const security_driver_t ssl_security_driver;
-#endif
-#ifdef BSDUDP_SECURITY
-extern const security_driver_t bsdudp_security_driver;
-#endif
 extern const security_driver_t local_security_driver;
 
 /*

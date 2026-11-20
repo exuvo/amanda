@@ -33,7 +33,6 @@
  */
 
 #include "stream.h"
-#include "dgram.h"
 #include "conffile.h"
 #include "shm-ring.h"
 #include "security.h"
@@ -51,22 +50,6 @@
  */
 #define H_TAKEN -1		/* sec_conn->tok was already read */
 #define H_EOF   -2		/* this connection has been shut down */
-
-#ifdef KRB5_SECURITY
-#  define KRB5_DEPRECATED 1
-#  ifndef KRB5_HEIMDAL_INCLUDES
-#    include <gssapi/gssapi_generic.h>
-#  else
-#    include <gssapi/gssapi.h>
-#  endif
-#  include <krb5.h>
-#endif
-
-#ifdef SSL_SECURITY
-#include <openssl/crypto.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#endif
 
 typedef struct async_write_data {
     struct iovec  iov[3];
@@ -122,18 +105,11 @@ struct tcp_conn {
     char *              (*conf_fn)(char *, void *);
     void *              datap;
     time_t              logstamp;
-#ifdef KRB5_SECURITY
-    gss_ctx_id_t	gss_context;
-#endif
     unsigned int	netint[2];
     char *              buffer;
     ssize_t             size_header_read;
     ssize_t             size_buffer_read;
     GSource            *child_watch;
-#ifdef SSL_SECURITY
-    SSL_CTX            *ctx;
-    SSL                *ssl;
-#endif
     gboolean            paused;
 };
 
@@ -165,7 +141,6 @@ struct sec_handle {
     event_handle_t *	ev_read;
     struct sec_handle *	prev;
     struct sec_handle *	next;
-    struct udp_handle *	udp;
     void		(*accept_fn)(security_handle_t *, pkt_t *);
     struct addrinfo    *res;
     struct addrinfo    *next_res;
@@ -201,55 +176,6 @@ struct sec_stream {
     gboolean            paused;
 };
 
-/*
- * This is data local to the datagram socket.  We have one datagram
- * per process per auth.
- */
-typedef struct udp_handle {
-    const struct security_driver *driver;	/* MUST be first */
-    dgram_t dgram;		/* datagram to read/write from */
-    sockaddr_union peer;	/* who sent it to us */
-    pkt_t pkt;			/* parsed form of dgram */
-    char *handle;		/* handle from recvd packet */
-    int sequence;		/* seq no of packet */
-    event_handle_t *ev_read;	/* read event handle from dgram */
-    int refcnt;			/* number of handles blocked for reading */
-    struct sec_handle *bh_first, *bh_last;
-    void (*accept_fn)(security_handle_t *, pkt_t *);
-    int (*recv_security_ok)(struct sec_handle *, pkt_t *, int);
-    char *(*prefix_packet)(void *, pkt_t *);
-    int			need_priv_port;
-} udp_handle_t;
-
-/*
- * We register one event handler for our network fd which takes
- * care of all of our async requests.  When all async requests
- * have either been satisfied or cancelled, we unregister our
- * network event handler.
- */
-#define	udp_addref(udp, netfd_read_callback) do {			\
-    if ((udp)->refcnt++ == 0) {						\
-	assert((udp)->ev_read == NULL);					\
-	(udp)->ev_read = event_create((event_id_t)(udp)->dgram.socket,	\
-	    EV_READFD, netfd_read_callback, (udp));			\
-	event_activate((udp)->ev_read);					\
-    }									\
-    assert((udp)->refcnt > 0);						\
-} while (0)
-
-/*
- * If this is the last request to be removed, then remove the
- * reader event from the netfd.
- */
-#define	udp_delref(udp) do {						\
-    assert((udp)->refcnt > 0);						\
-    if (--(udp)->refcnt == 0) {						\
-	assert((udp)->ev_read != NULL);					\
-	event_release((udp)->ev_read);					\
-	(udp)->ev_read = NULL;						\
-    }									\
-} while (0)
-
 
 int	sec_stream_auth(void *);
 int	sec_stream_id(void *);
@@ -261,7 +187,6 @@ void	sec_accept(const security_driver_t *,
 void	sec_close(void *);
 void	sec_connect_callback(void *);
 void	sec_connect_timeout(void *);
-void	sec_close_connection_none(void *, char *);
 
 ssize_t	stream_sendpkt(void *, pkt_t *);
 void	stream_recvpkt(void *,
@@ -289,51 +214,11 @@ void *	tcpma_stream_server(void *);
 void	tcpma_stream_close(void *);
 void    tcpma_stream_close_async(void *s, void (*fn)(void *, ssize_t, void *, ssize_t), void *arg);
 
-void *	tcp1_stream_server(void *);
-int	tcp1_stream_accept(void *);
-void *	tcp1_stream_client(void *, int);
-
-int	tcp_stream_write(void *, const void *, size_t);
-int	tcp_stream_write_async(void *, void *, size_t, void (*)(void *, ssize_t, void *, ssize_t), void *);
-
-char *	bsd_prefix_packet(void *, pkt_t *);
-int	bsd_recv_security_ok(struct sec_handle *, pkt_t *, int);
-
-ssize_t	udpbsd_sendpkt(void *, pkt_t *);
-void	udp_close(void *);
-void	udp_recvpkt(void *, void (*)(void *, pkt_t *, security_status_t),
-		     void *, int);
-void	udp_recvpkt_cancel(void *);
-void	udp_recvpkt_callback(void *);
-void	udp_recvpkt_timeout(void *);
-int	udp_inithandle(udp_handle_t *, struct sec_handle *, char *hostname,
-		       sockaddr_union *, in_port_t, char *, int);
-void	udp_netfd_read_callback(void *);
 
 struct tcp_conn *sec_tcp_conn_get(const char *, const char *, int);
 void	sec_tcp_conn_read(struct tcp_conn *);
 void	parse_pkt(pkt_t *, const void *, size_t);
-const char *pkthdr2str(const struct sec_handle *, const pkt_t *);
-int	str2pkthdr(udp_handle_t *);
-char *	check_user(struct sec_handle *, const char *, const char *);
-
-char *	check_user_ruserok    (const char *host,
-				struct passwd *pwd,
-				const char *user);
-char *	check_user_amandahosts(const char *host,
-			        sockaddr_union *addr,
-				struct passwd *pwd,
-				const char *user,
-				const char *service);
-
-ssize_t	net_read(int, void *, size_t, int);
-ssize_t net_read_fillbuf(int, int, void *, size_t);
-void	show_stat_info(char *a, char *b);
-int     check_name_give_sockaddr(const char *hostname, struct sockaddr *addr,
-				 char **errstr);
-in_port_t find_port_for_service(char *service, char *proto);
 char	*sec_get_authenticated_peer_name_gethostname(security_handle_t *);
-char	*sec_get_authenticated_peer_name_hostname(security_handle_t *);
 ssize_t generic_data_write(void *, struct iovec *iov, int iovcnt);
 ssize_t generic_data_write_non_blocking(void *, struct iovec *iov, int iovcnt);
 ssize_t generic_data_read(void *, void *vbuf, size_t sizebuf, int timeout);

@@ -85,17 +85,6 @@ AMANDA_SYSHACKS
 AMANDA_EXPAND_DIRS
 
 #
-# Security (authentication) mechansims
-#
-AMANDA_BSD_SECURITY
-AMANDA_BSDTCP_SECURITY
-AMANDA_BSDUDP_SECURITY
-AMANDA_RSH_SECURITY
-AMANDA_SSL_SECURITY
-AMANDA_SSH_SECURITY
-AMANDA_KRB5_SECURITY
-
-#
 # Dumpers
 #
 AMANDA_PROG_REALPATH
@@ -199,7 +188,6 @@ AC_CHECK_HEADERS(
 	stdlib.h \
 	stdint.h \
 	strings.h \
-	rpc/rpc.h \
 	sys/file.h \
 	sys/ioctl.h \
 	sys/ipc.h \
@@ -219,12 +207,6 @@ AC_DEFINE([HAVE_AMANDA_H], 1, [Define to 1 if you have the "amanda.h" header fil
 AC_DEFINE([HAVE_UTIL_H], 1, [Define to 1 if you have the "util.h" header file.])
 
 
-# okay if not found.. if not needed
-PKG_CHECK_MODULES([TIRPC],[libtirpc],[ 
-   AC_DEFINE([HAVE_RPC_RPC_H], 1) 
-],[
-   dnl nothing here
-])
 
 #
 # Types
@@ -252,10 +234,6 @@ CF_WAIT_INT
 #
 # Libraries
 #
-# cur_colr is on some HP's
-AC_CHECK_LIB(cur_colr,main)
-AC_CHECK_LIB(intl,main)
-AMANDA_CHECK_NET_LIBS
 AMANDA_CHECK_GLIB
 AMANDA_CHECK_READLINE
 AC_CHECK_LIB(m,modf)

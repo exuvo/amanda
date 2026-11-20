@@ -34,7 +34,6 @@ libamanda_la_SOURCES =		\
 	clock.c			\
 	conffile.c		\
 	debug.c			\
-	dgram.c			\
 	event.c			\
 	file.c			\
 	fileheader.c		\
@@ -89,27 +88,6 @@ libamanda_la_SOURCES += amflock-lnlock.c
 endif
 
 
-if WANT_RSH_SECURITY
-libamanda_la_SOURCES += rsh-security.c
-endif
-if WANT_SSH_SECURITY
-libamanda_la_SOURCES += ssh-security.c
-endif
-if WANT_BSD_SECURITY
-libamanda_la_SOURCES += bsd-security.c
-endif
-if WANT_BSDTCP_SECURITY
-libamanda_la_SOURCES += bsdtcp-security.c
-endif
-if WANT_BSDUDP_SECURITY
-libamanda_la_SOURCES += bsdudp-security.c
-endif
-if WANT_KRB5_SECURITY
-libamanda_la_SOURCES += krb5-security.c
-endif
-if WANT_SSL_SECURITY
-libamanda_la_SOURCES += ssl-security.c
-endif
 
 libamanda_la_SOURCES += local-security.c
 
@@ -129,7 +107,6 @@ noinst_HEADERS =		\
 	amflock.h		\
 	conffile.h		\
 	debug.h			\
-	dgram.h			\
 	event.h			\
 	file.h			\
 	fileheader.h		\
@@ -285,8 +262,7 @@ match_test_LDADD = libamanda.la libtestutils.la
 sbin_SCRIPTS_PERL = \
 	    amgpgcrypt \
 	    amcryptsimple \
-	    amgetconf \
-	    amssl
+	    amgetconf
 
 amlibexec_SCRIPTS_PERL =
 

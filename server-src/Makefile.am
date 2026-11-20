@@ -28,15 +28,12 @@ amlibexec_PROGRAMS =	amindexd	amtrmidx	\
 
 amlibexec_SCRIPTS_PERL = \
 	    amadmin_perl \
-	    ambackupd \
 	    amlogroll \
-	    amdumpd \
 	    chunker \
 	    taper \
 	    amcheck-device
 
 sbin_SCRIPTS_PERL = \
-	    amaddclient \
 	    amoverview \
 	    amserverconfig \
 	    amtoc \

@@ -398,22 +398,6 @@ main(
     prnum("AMANDA_DEBUG_DAYS", AMANDA_DEBUG_DAYS);
 #endif
 
-#ifdef BSD_SECURITY
-    prstr("BSD_SECURITY");
-#endif
-
-#ifdef KRB5_SECURITY
-    prstr("KRB5_SECURITY");
-#endif
-
-#ifdef RSH_SECURITY
-    prstr("RSH_SECURITY");
-#endif
-
-#ifdef USE_AMANDAHOSTS
-    prstr("USE_AMANDAHOSTS");
-#endif
-
 #ifdef USE_RUNDUMP
     prstr("USE_RUNDUMP");
 #endif

@@ -31,9 +31,6 @@ Amanda::ClientService -- support for writing amandad and inetd services
 
     sub start {
 	my $self = shift;
-	if ($self->from_inetd) {
-	    $self->check_bsd_security('main');
-	}
 	# ...
     }
     #...
@@ -124,20 +121,6 @@ outstanding asynchronous reads or writes.
     $self->close('MESG');       # complete close ('rw' is OK too)
     $self->close('INDEX', 'r'); # close for reading
     $self->close('DATA', 'w');  # close for writing
-
-=head2 Security
-
-Invocations from inetd require a BSD-style security check.  The
-C<check_bsd_security> method takes the stream and the authentication string,
-I<without> the C<"SECURITY "> prefix or trailing newline, and performs the
-necesary checks.  To be clear, this string usually has the form C<"USER root">.
-The method returns C<undef> if the check succeeds, and an error message if it
-fails.
-
-    if ($self->check_bsd_security($stream, $authstr, $service)) { .. }
-
-Not that the security check is skipped if the service is being run from an
-installcheck, since BSD security can't be tested by installchecks.
 
 =head2 REQ packets
 
@@ -406,22 +389,6 @@ sub close {
 	$self->{'_streams'}{$name}{'rfd'} = $rfd;
 	$self->{'_streams'}{$name}{'wfd'} = $wfd;
     }
-}
-
-sub check_bsd_security {
-    my $self = shift;
-    my ($name, $authstr, $service) = @_;
-
-    # find the open file descriptor
-    my $fd = $self->rfd($name);
-    $fd = $self->wfd($name) if $fd < 0;
-    die "stream '$name' not open" if $fd < 0;
-
-    # don't invoke check_security if we're run as an installcheck;
-    # installchecks are incompatible with BSD security
-    return undef if $self->from_installcheck();
-
-    return Amanda::Util::check_security($fd, $authstr, $service);
 }
 
 sub parse_req {

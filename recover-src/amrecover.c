@@ -36,7 +36,6 @@
 #include "amfeatures.h"
 #include "amrecover.h"
 #include "getfsent.h"
-#include "dgram.h"
 #include "amutil.h"
 #include "conffile.h"
 #include "protocol.h"

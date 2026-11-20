@@ -139,13 +139,6 @@ my %build_info = (
 
     # amanda modules
 
-    'bsd_security' => $Amanda::Constants::BSD_SECURITY,
-    'bsdudp_security' => $Amanda::Constants::BSDUDP_SECURITY,
-    'bsdtcp_security' => $Amanda::Constants::BSDTCP_SECURITY,
-    'krb5_security' => $Amanda::Constants::KRB5_SECURITY,
-    'ssh_security' => $Amanda::Constants::SSH_SECURITY,
-    'rsh_security' => $Amanda::Constants::RSH_SECURITY,
-    'use_amandahosts' => $Amanda::Constants::USE_AMANDAHOSTS,
 
     # build-time constants
 

@@ -587,40 +587,8 @@ socketfd stream_server(int family, in_port_t *port_ARGOUT, size_t sendsize,
 
 socketfd stream_accept(int fd, int timeout, size_t sendsize, size_t recvsize);
 
-%newobject check_security_fd;
-%rename(check_security) check_security_fd;
-%inline %{
-char *check_security_fd(int fd, char *userstr, char *service)
-{
-    socklen_t_equiv i;
-    struct sockaddr_in addr;
-    char *errstr;
-
-    /* get the remote address */
-    i = sizeof(addr);
-    if (getpeername(fd, (struct sockaddr *)&addr, &i) == -1) {
-	return g_strdup_printf("getpeername: %s", strerror(errno));
-    }
-
-    /* require IPv4 and not port 20 -- apparently this was a common attack
-     * vector for much older Amandas */
-    if ((addr.sin_family != (sa_family_t)AF_INET)
-		|| (ntohs(addr.sin_port) == 20)) {
-	char ip_addr[100];
-	inet_ntop(AF_INET, &addr.sin_addr, ip_addr, 100);
-	return g_strdup_printf("connection rejected from %s family %d port %d",
-			       ip_addr, addr.sin_family, htons(addr.sin_port));
-    }
-
-    /* call out to check_security */
-    if (!check_security((sockaddr_union *)&addr, userstr, 0, &errstr, service))
-	return errstr;
-
-    return NULL;
-}
-%}
 amglue_export_ok(
-	stream_server stream_accept check_security);
+	stream_server stream_accept);
 amglue_export_tag(constants,
 	$AF_INET $STREAM_BUFSIZE);
 

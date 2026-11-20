@@ -27,12 +27,8 @@ DISTCLEANFILES += $(template_generated_FILE)
 
 
 server_example_in_FILE = \
-		amanda.conf.in \
-		inetd.conf.amandaserver.in \
-		xinetd.amandaserver.in \
-		amandaserver.xml.in
+		amanda.conf.in
 server_example_FILE = \
-		chg-multi.conf \
 		chg-scsi.conf \
 		disklist
 server_example_generated_FILE = $(server_example_in_FILE:%.in=%)
@@ -42,10 +38,7 @@ DISTCLEANFILES += $(server_example_generated_FILE)
 
 client_example_in_FILE = \
 		amanda-client.conf.in \
-		amanda-client-postgresql.conf.in \
-		inetd.conf.amandaclient.in \
-		xinetd.amandaclient.in \
-		amandaclient.xml.in
+		amanda-client-postgresql.conf.in
 client_example_FILE = 
 client_example_generated_FILE = $(client_example_in_FILE:%.in=%)
 client_example_DATA = $(client_example_FILE) $(client_example_generated_FILE)

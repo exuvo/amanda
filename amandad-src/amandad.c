@@ -85,10 +85,8 @@ typedef enum {
     SERVICE_SELFCHECK,
     SERVICE_AMINDEXD,
     SERVICE_AMIDXTAPED,
-    SERVICE_AMDUMPD,
     SERVICE_SENDDISCOVER,
-    SERVICE_RESTORE,
-    SERVICE_AMBACKUPD
+    SERVICE_RESTORE
 } service_t;
 
 static struct services {
@@ -102,10 +100,8 @@ static struct services {
    { "selfcheck", 1, SERVICE_SELFCHECK },
    { "amindexd", 0, SERVICE_AMINDEXD },
    { "amidxtaped", 0, SERVICE_AMIDXTAPED },
-   { "amdumpd", 0, SERVICE_AMDUMPD },
    { "senddiscover", 1, SERVICE_SENDDISCOVER },
-   { "restore", 1, SERVICE_RESTORE },
-   { "ambackupd", 0, SERVICE_AMBACKUPD }
+   { "restore", 1, SERVICE_RESTORE }
 };
 #define NSERVICES G_N_ELEMENTS(services)
 
@@ -456,13 +452,13 @@ main(
     }
 
     /*
-     * If no security type specified, use BSDTCP
+     * If no security type specified, use local (the only one built)
      */
     if (secdrv == NULL) {
-	secdrv = security_getdriver("BSDTCP");
-	auth = "bsdtcp";
+	secdrv = security_getdriver("LOCAL");
+	auth = "local";
 	if (secdrv == NULL) {
-	    error(_("no driver for default security type 'BSDTCP'\n"));
+	    error(_("no driver for default security type 'LOCAL'\n"));
 	    /*NOTREACHED*/
 	}
     }

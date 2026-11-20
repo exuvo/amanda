@@ -14,13 +14,10 @@ tape_server  "@DEFAULT_TAPE_SERVER@"	# your amidxtaped server
 			# of 'amrecover_changer' in the server amanda.conf.
 
 #   auth	- authentication scheme to use between server and client.
-#		  Valid values are "bsd", "bsdudp", "bsdtcp", "krb5", "local",
-#		  "rsh" and "ssh".  
-#		  Default: [auth "bsdtcp"]
-auth "bsdtcp"
+#		  Only "local" is supported in this build (the default).
+auth "local"
 
 # your ssh keys file if you use ssh auth
-ssh_keys "/var/lib/amanda/.ssh/id_rsa_amrecover"
 
 # Use /etc/amanda/pgpassfile for authentication credentials
 # (Note: for PostgreSQL 8.0.x, you must use PG-PASSWORD instead)

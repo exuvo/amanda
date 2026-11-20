@@ -359,7 +359,7 @@ sub create_customconf{
 	print CONF "etimeout $def_etimeout\t# number of seconds per filesystem for estimates\n";
 	print CONF "define dumptype global {\n";
 	print CONF "       comment \"Global definitions\"\n";
-	print CONF "       auth \"bsdtcp\"\n}\n";
+	print CONF "       auth \"local\"\n}\n";
 	print CONF "define dumptype gui-base {\n";
 	print CONF "       global\n";
 	print CONF "       program \"GNUTAR\"\n";
@@ -404,32 +404,8 @@ sub create_customconf{
   }
 
 
-sub check_xinetd{
-    &mprint ("/var/lib/amanda/example/xinetd.amandaserver contains the latest Amanda server daemon configuration.\n");
-    &mprint ("Please merge it to /etc/xinetd.d/amandaserver.\n");
-}
 
 
-sub build_amanda_ssh_key{
-  if ( -e "$amandahomedir/.ssh/id_rsa_amdump.pub" ) {
-    if ( -e "$amandahomedir/.ssh/client_authorized_key" ) {
-      &mprint ("$amandahomedir/.ssh/client_authorized_keys exists.\n");
-    }
-    else {
-      open(NEWAUTH, ">$amandahomedir/.ssh/client_authorized_keys") ||
-	(&mprint("WARNING: open $amandahomedir/.ssh/client_authorized_key failed: $!\n"), return);
-      open(PUB, "$amandahomedir/.ssh/id_rsa_amdump.pub") ||
-	(&mprint("WARNING: open $amandahomedir/.ssh/id_rsa_amdump.pub failed: $!\n"), return);
-      print NEWAUTH "from=\"$host\",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,command=\"/usr/lib/amanda/amandad -auth=ssh amdump\" ";
-      while (<PUB>) {
-      print NEWAUTH;
-    }
-      close NEWAUTH;
-      close PUB;
-      &mprint("$amandahomedir/.ssh/client_authorized_keys created. Please append to $amandahomedir/.ssh/authorized_keys file on Amanda clients\n");
-      }
-  }
-}
 
 sub copy_chg_manual_conf {
   if ( $template eq "single-tape" && !defined $changerfile && !defined $tpchanger)
@@ -641,8 +617,6 @@ if ( defined $template ) {
 &create_customconf;
 }
 
-&check_xinetd;
-&build_amanda_ssh_key;
 
 if ( $vtape_err ) {
   &mprint("Error in creating virtual tape, please check log and create virtual tape manually.\n");

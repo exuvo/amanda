@@ -32,7 +32,6 @@
  * functions for managing stream sockets
  */
 #include "amanda.h"
-#include "dgram.h"
 #include "stream.h"
 #include "amutil.h"
 #include "conffile.h"

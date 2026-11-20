@@ -1357,15 +1357,12 @@ main(
     char *s;
     int ch;
     char *cmd_undo, cmd_undo_ch;
-    socklen_t_equiv socklen;
-    sockaddr_union his_addr;
     char *arg = NULL;
     char *cmd;
     size_t len;
     int user_validated = 0;
     char *errstr = NULL;
     char *pgm = "amindexd";		/* in case argv[0] is not set */
-    char his_hostname[MAX_HOSTNAME_LENGTH];
     char *cfg_opt = NULL;
 
     glib_init();
@@ -1467,21 +1464,8 @@ main(
 
     if(from_amandad == 0) {
 	if(!amindexd_debug) {
-	    /* who are we talking to? */
-	    socklen = sizeof (his_addr);
-	    if (getpeername(0, (struct sockaddr *)&his_addr, &socklen) == -1)
-		error(_("getpeername: %s"), strerror(errno));
-
-	    /* Try a reverse (IP->hostname) resolution, and fail if it does
-	     * not work -- this is a basic security check */
-	    if (getnameinfo((struct sockaddr *)&his_addr, SS_LEN(&his_addr),
-			    his_hostname, sizeof(his_hostname),
-			    NULL, 0,
-			    0)) {
-		error(_("getnameinfo(%s): hostname lookup failed"),
-		      str_sockaddr(&his_addr));
-		/*NOTREACHED*/
-	    }
+	    error(_("amindexd must be started by amandad"));
+	    /*NOTREACHED*/
 	}
 
 	/* Set up the input and output FILEs */
@@ -1551,7 +1535,7 @@ main(
     reply(220, _("%s AMANDA index server (%s) ready."), local_hostname,
 	  VERSION);
 
-    user_validated = from_amandad;
+    user_validated = from_amandad || amindexd_debug;
 
     /* a real simple parser since there are only a few commands */
     while (1)
@@ -1625,17 +1609,6 @@ main(
 	}
 
 	amfree(errstr);
-	if (!user_validated && g_str_equal(cmd, "SECURITY") && arg) {
-	    user_validated = amindexd_debug ||
-				check_security(
-					(sockaddr_union *)&his_addr,
-					arg, 0, &errstr, "amindexd");
-	    if(user_validated) {
-		reply(200, _("Access OK"));
-		amfree(line);
-		continue;
-	    }
-	}
 	if (!user_validated) {  /* don't tell client the reason, just log it to debug log */
 	    reply(500, _("Access not allowed"));
 	    if (errstr) {

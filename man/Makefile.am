@@ -11,19 +11,15 @@ COMMON_MAN_PAGES =  amanda.8 \
 		    amanda-scripts.7 \
 		    amanda-archive-format.5 \
 		    amanda-auth.7 \
-		    amanda-auth-ssl.7 \
 		    amanda-match.7 \
 		    amarchiver.8 \
 		    amgetconf.8 \
 		    amservice.8 \
-		    amssl.8 \
 		    script-email.8
 
 CLIENT_MAN_PAGES = \
     amanda-applications.7 \
-    ambackup.8 \
     ambsdtar.8 \
-    amdump_client.8 \
     amgtar.8 \
     ampgsql.8 \
     amraw.8 \
@@ -39,7 +35,6 @@ SERVER_MAN_PAGES =  \
     amanda-changers.7 \
     amanda-interactivity.7 \
     amanda-taperscan.7 \
-    amaddclient.8    \
     amadmin.8 \
     amaespipe.8 \
     amcheck.8 \

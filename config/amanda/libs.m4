@@ -55,29 +55,6 @@ AC_DEFUN([AMANDA_CHECK_HMAC], [
 
 # SYNOPSIS
 #
-#   AMANDA_CHECK_NET_LIBS
-#
-# OVERIVEW
-#
-#   Check for the libraries we'll need to use sockets, etc.
-#
-AC_DEFUN([AMANDA_CHECK_NET_LIBS], [
-    # Make sure we don't use -lnsl and -lsun on Irix systems.
-    case "$host" in
-	*sgi-irix*)
-			    AC_CHECK_LIB(socket,main)
-			    ;;
-	*)
-			    AC_CHECK_LIB(resolv,main)
-			    AC_CHECK_LIB(nsl,main)
-			    AC_CHECK_LIB(socket,main)
-			    AC_CHECK_LIB(sun,main)
-			    ;;
-    esac
-])
-
-# SYNOPSIS
-#
 #   AMANDA_CHECK_GLIB
 #
 # OVERVIEW

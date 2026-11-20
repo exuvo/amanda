@@ -35,7 +35,6 @@
 #include "match.h"
 #include "amrecover.h"
 #include "fileheader.h"
-#include "dgram.h"
 #include "stream.h"
 #include "tapelist.h"
 #ifdef SAMBA_CLIENT

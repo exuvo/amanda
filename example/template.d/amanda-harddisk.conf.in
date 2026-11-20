@@ -26,7 +26,7 @@ etimeout 300                           # number of seconds per filesystem for es
 
 define dumptype global {
         comment "Global definitions"
-        auth "bsdtcp"
+        auth "local"
 }
 
 #define application-tool and dumptype for the amgtar application

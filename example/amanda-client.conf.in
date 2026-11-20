@@ -15,10 +15,7 @@ tapedev      "@EXAMPLE_TAPEDEV@"	# your tape device
 			# of 'amrecover_changer' in the server amanda.conf.
 
 #   auth	- authentication scheme to use between server and client.
-#		  Valid values are "bsd", "bsdudp", "bsdtcp", "krb5", "local",
-#		  "rsh" and "ssh".  
-#		  Default: [auth "bsdtcp"]
-auth "bsdtcp"
+#		  Only "local" is supported in this build (the default).
+auth "local"
 
-ssh_keys ""			# your ssh keys file if you use ssh auth
 
