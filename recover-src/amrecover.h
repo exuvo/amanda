@@ -108,6 +108,7 @@ extern void set_property_name(char *name, int append);
 extern void add_property_value(char *value);
 extern void list_property(void);
 extern void list_all_file(char *dir, char *name, int re);
+extern void list_all(void);
 extern void find_file(char *name, char *dir, int re);
 extern void list_file_history(char* name);
 

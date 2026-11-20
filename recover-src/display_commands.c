@@ -85,12 +85,13 @@ void list_file_history(char* name)
     char *next_date;
     char *cmd;
     char **list_date;
-    list_date = g_malloc0(sizeof(char *) * size);
 
     if (disk_path == NULL) {
         g_printf(_("Must select a disk before listing file history; use the setdisk command.\n"));
         return;
     }
+
+    list_date = g_malloc0(sizeof(char *) * size);
 
     send_command("DHST");
     get_reply_line();
@@ -136,12 +137,10 @@ void list_file_history(char* name)
             cmd = g_strconcat("DATE ", list_date[ind], NULL);
             if (exchange(cmd) == -1)
                 exit(1);
+            amfree(cmd);
+            /* skip dates the server rejects; don't retry them forever */
             if (server_happy())
-            {
                 suck_dir_list_from_server();
-            } else {
-                continue;
-            }
             for (item = get_dir_list(); item != NULL; item = get_next_dir_item(item)) {
                 quoted = quote_string(item->tpath + i);
                 if (strcmp(quoted, name) == 0) {
@@ -161,6 +160,7 @@ void list_file_history(char* name)
         ind++;
     }
     amfree(list_date);
+    amfree(next_date);
     cmd = g_strconcat("DATE ", listing_date, NULL);
     if (exchange(cmd) == -1)
         exit(1);
@@ -169,6 +169,32 @@ void list_file_history(char* name)
         suck_dir_list_from_server();
     }
     amfree(cmd);
+}
+
+
+/* absolute path of the current virtual directory, for set_directory() */
+static char *
+get_cwd_abs(void)
+{
+    if (g_str_equal(mount_point, "/"))
+        return g_strdup(disk_path);
+    return g_strconcat(mount_point, disk_path, NULL);
+}
+
+
+void
+list_all(void)
+{
+    char *cwd;
+
+    if (disk_path == NULL) {
+        g_printf(_("Must select a disk before listing files; use the setdisk command.\n"));
+        return;
+    }
+    cwd = get_cwd_abs();
+    list_all_file(mount_point, ".*", 1);
+    set_directory(cwd, 0);
+    amfree(cwd);
 }
 
 
@@ -239,7 +265,6 @@ list_all_file(char *dir, char *name, int re)
             amfree(dir_list[i]);
             i++;
         }
-        set_directory(dir, 0);
     }
     amfree(dir_list);
 }
@@ -250,11 +275,14 @@ find_file(char *name, char *dir, int re)
 {
     char *error = NULL;
     char *regex = NULL;
+    char *abs_dir = NULL;
+    char *cwd;
 
     if (disk_path == NULL) {
         g_printf(_("Must select a disk before search for a file; use the setdisk command.\n"));
         return;
     }
+    cwd = get_cwd_abs();
 
     if ((strlen(dir) != 1) && (dir[0] == '\"') && (dir[strlen(dir) - 1] == '\"')) {
         dir = &dir[1];
@@ -263,13 +291,14 @@ find_file(char *name, char *dir, int re)
     if (!g_str_has_prefix(dir, mount_point)) {
         if (dir[0] != '/') {
             if (disk_tpath[strlen(disk_tpath) - 1] == '/') {
-                dir = g_strconcat(mount_point, disk_tpath, dir, NULL);
+                abs_dir = g_strconcat(mount_point, disk_tpath, dir, NULL);
             } else {
-                dir = g_strconcat(mount_point, disk_tpath, "/", dir, NULL);
+                abs_dir = g_strconcat(mount_point, disk_tpath, "/", dir, NULL);
             }
         } else {
-            dir = g_strconcat(mount_point, dir, NULL);
+            abs_dir = g_strconcat(mount_point, dir, NULL);
         }
+        dir = abs_dir;
     }
 
     name = convert_name(name);
@@ -289,7 +318,11 @@ find_file(char *name, char *dir, int re)
 
         list_all_file(dir, name, re);
     }
+    amfree(regex);
     amfree(name);
+    amfree(abs_dir);
+    set_directory(cwd, 0);
+    amfree(cwd);
 }
 
 

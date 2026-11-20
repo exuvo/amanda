@@ -197,7 +197,7 @@ display_command:
   |	DHIST invalid_string { yyerror("Invalid argument"); }
   |	LS NL { list_directory(); }
   |	LS invalid_string { yyerror("Invalid argument"); }
-  | LSALL NL { list_all_file(mount_point, ".*", 1); }
+  | LSALL NL { list_all(); }
   | LSALL invalid_string { yyerror("Invalid argument"); }
   |	LIST STRING NL { display_extract_list($2); amfree($2); }
   |	LIST NL { display_extract_list(NULL); }
