@@ -556,7 +556,7 @@ ssl_accept(
     if (loc != -1) {
 	X509_NAME_ENTRY *x509_entry = X509_NAME_get_entry(x509_name, loc);
 	ASN1_STRING *asn1_string = X509_NAME_ENTRY_get_data(x509_entry);
-	cert_hostname = (char *)ASN1_STRING_data(asn1_string);
+	cert_hostname = (char *)ASN1_STRING_get0_data(asn1_string);
 	auth_debug(1, "common_name: %s\n", cert_hostname);
 
 	if (ssl_check_certificate_host &&
@@ -800,7 +800,7 @@ runssl(
 	    if (loc != -1) {
 		X509_NAME_ENTRY *x509_entry = X509_NAME_get_entry(x509_name, loc);
 		ASN1_STRING *asn1_string = X509_NAME_ENTRY_get_data(x509_entry);
-		char *cert_hostname =  (char *)ASN1_STRING_data(asn1_string);
+		char *cert_hostname =  (char *)ASN1_STRING_get0_data(asn1_string);
 		auth_debug(1, "common_name: %s\n", cert_hostname);
 
 		if (check_name_give_sockaddr((char*)cert_hostname,
