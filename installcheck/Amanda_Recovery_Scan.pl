@@ -59,8 +59,8 @@ sub user_request {
     my $self = shift;
     my %params = @_;
 
-    Amanda::Debug::debug("Change changer to multi-changer");
-    $params{'request_cb'}->(undef, "multi-changer");
+    Amanda::Debug::debug("Change changer to disk2-changer");
+    $params{'request_cb'}->(undef, "disk2-changer");
 };
 
 # --------
@@ -88,27 +88,22 @@ my $taperoot_disk = "$Installcheck::TMP/Amanda_Recovery_Scan_Disk";
     ]);
 }
 
-my $taperoot_multi = "$Installcheck::TMP/Amanda_Recovery_Scan_Multi";
-#create a multi changer
+# a second disk changer (this used to be a chg-multi changer, which has
+# been removed); the scan switches to it via the interactivity module
+my $taperoot_disk2 = "$Installcheck::TMP/Amanda_Recovery_Scan_Disk2";
 {
-    if (-d $taperoot_multi) {
-        rmtree($taperoot_multi);
+    if (-d $taperoot_disk2) {
+        rmtree($taperoot_disk2);
     }
-    mkpath($taperoot_multi);
+    mkpath($taperoot_disk2);
 
-    my @names;
     for my $slot (1 .. 3) {
-        mkdir("$taperoot_multi/slot$slot")
+        mkdir("$taperoot_disk2/slot$slot")
             or die("Could not mkdir: $!");
-        mkdir("$taperoot_multi/slot$slot/data")
-            or die("Could not mkdir: $!");
-	push @names, $slot;
     }
 
-    my $chg_name = "chg-multi:file:$taperoot_multi/slot{".join(',', @names)."}";
-    $testconf->add_changer("multi-changer", [
-	'tpchanger' => "\"$chg_name\"",
-	'changerfile' => "\"$Installcheck::TMP/Amanda_Recovery_Scan_Multi_status\"",
+    $testconf->add_changer("disk2-changer", [
+	'tpchanger' => "\"chg-disk:$taperoot_disk2\"",
     ]);
 }
 
@@ -316,7 +311,7 @@ sub test_searching {
     };
 }
 
-foreach my $chg_name ("disk-changer", "multi-changer", "single-changer") {
+foreach my $chg_name ("disk-changer", "disk2-changer", "single-changer") {
     # amlabel has to be done outside of Amanda::MainLoop
     my $chg = Amanda::Changer->new($chg_name);
     if ($chg_name eq "single-changer") {
@@ -383,21 +378,21 @@ sub test_scan_poll {
     };
 }
 
-foreach my $chg_name ("disk-changer", "multi-changer") {
+foreach my $chg_name ("disk-changer", "disk2-changer") {
     test_scan_poll($chg_name, \&Amanda::MainLoop::quit);
     Amanda::MainLoop::run();
 }
 
 #test SCAN_ASK_POLL which change the changer.
-#label TESTCONF05 in multi-changer
+#label TESTCONF05 in disk2-changer
 #start the scan on disk-changer
-#interactivity module change changer to multi-changer
+#interactivity module change changer to disk2-changer
 sub test_scan_ask_poll {
     my ($finished_cb) = @_;
     my $scan;
     my $res05;
 
-    my $chg_name = "multi-changer";
+    my $chg_name = "disk2-changer";
     my $chg = Amanda::Changer->new($chg_name);
     amlabel_sync($chg, $chg_name, 2, 'TESTCONF05');
     $chg->quit();
@@ -424,7 +419,7 @@ sub test_scan_ask_poll {
     step res_cb_05 => sub {
 	(my $err, $res05) = @_;
 
-	ok(!$err, "found TESTCONF05 on changer multi");
+	ok(!$err, "found TESTCONF05 on changer disk2");
 	ok($res05, "TESTCONF05 give a reservation after interactivity");
 	is($res05->{'chg'}->{'chg_name'}, $chg_name,
 	   "found TESTCONF05 on correct changer: $chg_name");
@@ -441,5 +436,5 @@ test_scan_ask_poll(\&Amanda::MainLoop::quit);
 Amanda::MainLoop::run();
 
 rmtree($taperoot_disk);
-rmtree($taperoot_multi);
+rmtree($taperoot_disk2);
 rmtree($taperoot_single);
