@@ -587,7 +587,7 @@ sub restore {
 
     my $msgs;
     my $errs;
-    my $exit_status = _exec($self, 'restore', ['--level', $args{'level'}, @{$args{'objects'}}], {
+    my $exit_status = _exec($self, 'restore', ['--level', $args{'level'}, @{$args{'args'} || []}, @{$args{'objects'}}], {
         0 => {'child_mode' => 'r', 'write' => $args{'data'}, sigpipe => $args{'data_sigpipe'}},
         1 => {'child_mode' => 'w', 'save_to' => \$msgs},
         2 => {'child_mode' => 'w', 'save_to' => \$errs},

@@ -1207,7 +1207,18 @@ sub sendctlline {
     my $chopped = $msg;
     $chopped =~ s/[\r\n]*$//g;
 
-    if ($self->{'ctl_stream'}) {
+    if ($self->{'ctl_stream'} && !defined $async_write_cb) {
+	debug("CTL >> $chopped");
+	my $fd = $self->wfd($self->{'ctl_stream'});
+	return 1 if Amanda::Util::full_write($fd, $msg, length($msg));
+	# amrecover closes its streams once it has what it needs (the restore
+	# program stopped after the last requested file): drop the message
+	# instead of dying
+	die "writing to CTL: $!" unless $! == POSIX::EPIPE;
+	debug("CTL closed by amrecover; dropping messages from now on");
+	$self->{'ctl_stream'} = undef;
+	return;
+    } elsif ($self->{'ctl_stream'}) {
 	debug("CTL >> $chopped");
 	return $self->senddata($self->{'ctl_stream'}, $msg, $async_write_cb);
     } else {

@@ -84,7 +84,7 @@ set(restore_tests
     amidxtaped
     amrestore)
 
-set(restore_tests_no_check_userid amrecover)
+set(restore_tests_no_check_userid amrecover amrecover_early_stop)
 
 set(_tests ${common_tests} ${mock_tests} ${server_tests} ${client_tests}
            ${full_tests} ${restore_tests})

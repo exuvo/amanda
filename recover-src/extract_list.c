@@ -145,6 +145,7 @@ static char *state_filename = NULL;
 static int use_dar = 0;
 static int got_use_dar = 0;
 static int send_use_dar = 0;
+static int dar_used = 0;	/* amidxtaped agreed to send only DAR ranges */
 static ctl_data_t  ctl_data;
 static ctl_state_t ctl_state;
 static data_path_t data_path_set;
@@ -2054,7 +2055,7 @@ extract_files_child(
 	}
 	if (ctl_data->bsu && ctl_data->bsu->recover_dump_state_file &&
 	    state_filename) {
-	    if (ctl_data->bsu->dar) {
+	    if (ctl_data->bsu->dar && dar_used) {
 		g_ptr_array_add(argv_ptr, g_strdup("--dar"));
 		g_ptr_array_add(argv_ptr, g_strdup("YES"));
 		g_ptr_array_add(argv_ptr, g_strdup("--state-stream"));
@@ -2175,6 +2176,7 @@ writer_intermediary(
     data_path_set = DATA_PATH_AMANDA;
     got_use_dar           = 0;
     send_use_dar           = 0;
+    dar_used              = 0;
     ctl_state.bytes_read  = 0;
     ctl_state.fd          = -1;
     ctl_state.state_done  = FALSE;
@@ -2339,6 +2341,10 @@ writer_intermediary(
     if (ctl_data.pid != -1) {
 	waitpid(ctl_data.pid, &extractor_status, 0);
 	extract_restore_child_pid = -1;
+	if (state_filename) {
+	    unlink(state_filename);
+	    amfree(state_filename);
+	}
 	if(WEXITSTATUS(extractor_status) != 0){
 	    int ret = WEXITSTATUS(extractor_status);
             if(ret == 255) ret = -1;
@@ -2602,12 +2608,11 @@ try_send_use_dar(void)
 	if (!send_use_dar && got_use_dar && ctl_data.header_done && ctl_state.state_done) {
 	    if (use_dar && ctl_data.bsu && ctl_data.bsu->dar && state_filename) {
 		send_to_tape_server(amidxtaped_streams[CTLFD].fd, "USE-DAR YES");
+		dar_used = 1;
 	    } else {
+		/* keep the state file: without DAR the application still uses
+		 * it to stop reading after the last requested file */
 		send_to_tape_server(amidxtaped_streams[CTLFD].fd, "USE-DAR NO");
-		if (state_filename) {
-		    unlink(state_filename);
-		    amfree(state_filename);
-		}
 	    }
 	    send_use_dar = 1;
 	}
@@ -3128,6 +3133,19 @@ data_cookie_t data_cookie = { NULL, 0, 0, 0, NULL, NULL };
 
 static void write_data_to_app(void *);
 
+/*
+ * The restore program closed its input: it has everything it needs (amgtar
+ * stops after the last requested file).  Stop amidxtaped so the server stops
+ * reading the tape; whether the restore worked is decided by the program's
+ * exit status, as usual.
+ */
+static void
+app_stopped_reading(void)
+{
+    g_debug("the restore program stopped reading its input; stopping amidxtaped");
+    stop_amidxtaped();
+}
+
 static void
 read_amidxtaped_data(
     void *	cookie,
@@ -3283,6 +3301,8 @@ read_amidxtaped_data(
 		data_cookie.ctl_data = ctl_data;
 		data_cookie.event = event_create(ctl_data->child_in[1], EV_WRITEFD, &write_data_to_app, &data_cookie);
 		event_activate(data_cookie.event);
+	} else if (count == -1 && errno == EPIPE) {
+	    app_stopped_reading();
 	} else if (count == -1 && errno != EAGAIN) {
 	    g_debug("A Failed to write to application: %s", strerror(errno));
 	    g_printf("A Failed to write to application: %s\n", strerror(errno));
@@ -3307,6 +3327,10 @@ write_data_to_app(
 	event_release(data_cookie->event);
 	data_cookie->event = NULL;
 	security_stream_resume(amidxtaped_streams[DATAFD].fd);
+    } else if (count == -1 && errno == EPIPE) {
+	event_release(data_cookie->event);
+	data_cookie->event = NULL;
+	app_stopped_reading();
     } else if (count == -1 && errno != EAGAIN) {
 	security_stream_resume(amidxtaped_streams[DATAFD].fd);
 	g_debug("B Failed to write to application: %s", strerror(errno));
@@ -3581,7 +3605,7 @@ start_processing_data(
 	send_to_tape_server(amidxtaped_streams[CTLFD].fd, "DATAPATH-OK");
     }
 
-    if (state_filename && ctl_data->bsu && ctl_data->bsu->dar) {
+    if (state_filename && ctl_data->bsu && ctl_data->bsu->dar && dar_used) {
 	ctl_data->dar_cdata.fd = ctl_data->dar_pipe[0];
 	ctl_data->dar_cdata.name = g_strdup("DAR");
 	ctl_data->dar_cdata.buffer = NULL;
@@ -3604,7 +3628,11 @@ handle_crc_thread(
     while ((size = full_read(crc->in, buf, 32768)) > 0) {
         if (full_write(crc->out, buf, size) == size) {
             crc32_add(buf, size, &crc->crc);
-        }
+        } else {
+	    /* the restore program stopped reading; stop draining the input
+	     * so the writer gets EPIPE and the server stops reading the tape */
+	    break;
+	}
     }
     close(crc->in);
     close(crc->out);

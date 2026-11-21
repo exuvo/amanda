@@ -1597,6 +1597,147 @@ amgtar_backup(
     g_ptr_array_free_full(argv_ptr);
 }
 
+/*
+ * Work out which parts of the dump hold the members in include_array, using
+ * the dump state file ("<512-byte block> <name>" for every member, recorded
+ * by tar -R during the backup).  Writes "DAR offset:end" lines to dar_file
+ * if it is not NULL.  Returns the offset of the last byte that is needed,
+ * or -1 if the needed data runs to the end of the archive, nothing matched,
+ * or the state file can't be read.
+ */
+static int64_t
+restore_ranges(
+    char      *state_filename,
+    GPtrArray *include_array,
+    FILE      *dar_file)
+{
+    char     line[32768];
+    FILE    *recover_state_file = fopen(state_filename, "r");
+    int64_t  previous_block = -1;
+    int64_t  last_byte = -1;
+    gboolean matched = FALSE;
+
+    if (!recover_state_file) {
+	if (dar_file) {
+	    fprintf(dar_file,"DAR 0:-1\n");
+	    g_debug("full dar: 0:-1");
+	}
+	return -1;
+    }
+
+    while (fgets(line, 32768, recover_state_file) != NULL) {
+	int64_t    block_no = g_ascii_strtoll(line, NULL, 0);
+	gboolean  match    = FALSE;
+	char     *filename = strchr(line, ' ');
+	char     *ii;
+	guint     i;
+
+	if (!filename)
+	    continue;
+
+	filename++;
+	if (filename[strlen(filename)-1] == '\n')
+	    filename[strlen(filename)-1] = '\0';
+
+	g_debug("recover_dump_state_file: %lld %s",
+			     (compat_lld_t)block_no, filename);
+	for (i = 0; i < include_array->len; i++) {
+	    size_t strlenii;
+
+	    ii = g_ptr_array_index(include_array, i);
+	    ii++; // remove leading '.'
+	    strlenii = strlen(ii);
+	    if (g_str_equal(filename, ii) == 1 ||
+		(strlenii < strlen(filename) &&
+		 strncmp(filename, ii, strlenii) == 0 &&
+		 filename[strlenii] == '/')) {
+		match = TRUE;
+		break;
+	    }
+	}
+
+	if (match) {
+	    matched = TRUE;
+	    if (previous_block < 0)
+		previous_block = block_no;
+	} else if (previous_block >= 0) {
+	    g_debug("restore block %lld (%lld) to %lld (%lld)",
+		    (compat_lld_t)previous_block * 512,
+		    (compat_lld_t)previous_block,
+		    (compat_lld_t)block_no * 512 - 1,
+		    (compat_lld_t)block_no);
+	    if (dar_file)
+		fprintf(dar_file, "DAR %lld:%lld\n",
+			(compat_lld_t)previous_block * 512,
+			(compat_lld_t)block_no * 512- 1);
+	    last_byte = block_no * 512 - 1;
+	    previous_block = -1;
+	}
+    }
+    fclose(recover_state_file);
+    if (previous_block >= 0) {
+	g_debug("restore block %lld (%lld) to END",
+		(compat_lld_t)previous_block * 512,
+		(compat_lld_t)previous_block);
+	if (dar_file)
+	    fprintf(dar_file, "DAR %lld:-1\n",
+		    (compat_lld_t)previous_block * 512);
+	return -1;
+    }
+    return matched ? last_byte : -1;
+}
+
+/*
+ * Copy the first 'limit' bytes of stdin to fd, then end the tar archive
+ * there (zero blocks, padded to a whole record).  stdin is not drained:
+ * once the requested members are extracted the rest of the dump is not
+ * needed, and closing our end lets the server stop reading the tape.
+ * Returns FALSE if tar stopped reading early.
+ */
+static gboolean
+feed_tar_prefix(
+    int     fd,
+    int64_t limit,
+    size_t  record_size)
+{
+    size_t   bufsize = 1024*1024;
+    char    *buf = g_malloc(bufsize);
+    int64_t  copied = 0;
+    size_t   tail;
+    gboolean ok = TRUE;
+
+    while (copied < limit) {
+	size_t  want = (size_t)MIN((int64_t)bufsize, limit - copied);
+	ssize_t got = read(0, buf, want);
+	if (got < 0 && errno == EINTR)
+	    continue;
+	if (got <= 0)
+	    break;			/* EOF: tar sees the real end */
+	if (full_write(fd, buf, (size_t)got) < (size_t)got) {
+	    ok = FALSE;
+	    break;
+	}
+	copied += got;
+    }
+    if (ok && copied == limit) {
+	/* two zero blocks end the archive; pad them to a whole record */
+	tail = 2 * 512;
+	if (record_size > 0 && (copied + tail) % record_size)
+	    tail += record_size - (copied + tail) % record_size;
+	memset(buf, 0, MIN(tail, bufsize));
+	while (tail > 0 && ok) {
+	    size_t n = MIN(tail, bufsize);
+	    if (full_write(fd, buf, n) < n)
+		ok = FALSE;
+	    tail -= n;
+	}
+	g_debug("stopped reading the dump after %lld bytes; the rest is not needed",
+		(compat_lld_t)copied);
+    }
+    g_free(buf);
+    return ok;
+}
+
 static void
 amgtar_restore(
     application_argument_t *argument)
@@ -1614,6 +1755,8 @@ amgtar_restore(
     char       *errmsg = NULL;
     FILE       *dar_file;
     char       *gnutar_realpath = NULL;
+    int64_t     stop_byte = -1;
+    int         feed_pipe[2] = { -1, -1 };
 
     if (!gnutar_path) {
 	error(_("GNUTAR-PATH not defined"));
@@ -1837,72 +1980,8 @@ amgtar_restore(
 	}
 	if (argument->recover_dump_state_file &&
 		   include_array->len > 0) {
-	    char  line[32768];
-	    FILE *recover_state_file = fopen(argument->recover_dump_state_file,
-					     "r");
-	    if (!recover_state_file) {
-		fprintf(dar_file,"DAR 0:-1\n");
-		g_debug("full dar: 0:-1");
-	    } else {
-		int64_t   previous_block = -1;
-
-		while (fgets(line, 32768, recover_state_file) != NULL) {
-		    int64_t    block_no = g_ascii_strtoll(line, NULL, 0);
-		    gboolean  match    = FALSE;
-		    char     *filename = strchr(line, ' ');
-		    char     *ii;
-		    guint     i;
-
-		    if (!filename)
-			continue;
-
-		    filename++;
-		    if (filename[strlen(filename)-1] == '\n')
-			filename[strlen(filename)-1] = '\0';
-
-		    g_debug("recover_dump_state_file: %lld %s",
-					 (compat_lld_t)block_no, filename);
-		    for (i = 0; i < include_array->len; i++) {
-			size_t strlenii;
-
-			ii = g_ptr_array_index(include_array, i);
-			ii++; // remove leading '.'
-			//g_debug("check %s : %s :", filename, ii);
-			strlenii = strlen(ii);
-			if (g_str_equal(filename, ii) == 1 ||
-			    (strlenii < strlen(filename) &&
-			     strncmp(filename, ii, strlenii) == 0 &&
-			     filename[strlenii] == '/')) {
-			    //g_debug("match %s", ii);
-			    match = TRUE;
-			    break;
-			}
-		    }
-
-		    if (match) {
-			if (previous_block < 0)
-			    previous_block = block_no;
-		    } else if (previous_block >= 0) {
-			g_debug("restore block %lld (%lld) to %lld (%lld)",
-				(compat_lld_t)previous_block * 512,
-				(compat_lld_t)previous_block,
-				(compat_lld_t)block_no * 512 - 1,
-				(compat_lld_t)block_no);
-			fprintf(dar_file, "DAR %lld:%lld\n",
-				(compat_lld_t)previous_block * 512,
-				(compat_lld_t)block_no * 512- 1);
-			previous_block = -1;
-		    }
-		}
-		fclose(recover_state_file);
-		if (previous_block >= 0) {
-		    g_debug("restore block %lld (%lld) to END",
-			    (compat_lld_t)previous_block * 512,
-			    (compat_lld_t)previous_block);
-		    fprintf(dar_file, "DAR %lld:-1\n",
-			    (compat_lld_t)previous_block * 512);
-		}
-	    }
+	    restore_ranges(argument->recover_dump_state_file, include_array,
+			   dar_file);
 	} else {
 	    fprintf(dar_file,"DAR 0:-1\n");
 	    g_debug("full dar: 0:-1");
@@ -1911,12 +1990,30 @@ amgtar_restore(
 	fclose(dar_file);
     }
 
+    /* Without DAR the whole dump arrives on stdin (it is compressed or
+     * encrypted, so the server can't seek).  Stop after the last member we
+     * need instead of reading the rest of the dump. */
+    if (!argument->dar && argument->recover_dump_state_file &&
+	include_array->len > 0 && !argument->include_list_glob) {
+	stop_byte = restore_ranges(argument->recover_dump_state_file,
+				   include_array, NULL);
+	if (stop_byte >= 0 && pipe(feed_pipe) == -1) {
+	    g_debug("pipe failed, reading the whole dump: %s", strerror(errno));
+	    stop_byte = -1;
+	}
+    }
+
     debug_executing(argv_ptr);
 
     tarpid = fork();
     switch (tarpid) {
     case -1: error(_("%s: fork returned: %s"), get_pname(), strerror(errno));
     case 0:
+	if (stop_byte >= 0) {
+	    dup2(feed_pipe[0], 0);
+	    close(feed_pipe[0]);
+	    close(feed_pipe[1]);
+	}
 	env = safe_env();
 	become_root();
 	execve(gnutar_realpath, (char **)argv_ptr->pdata, env);
@@ -1925,6 +2022,17 @@ amgtar_restore(
 	error(_("error [exec %s: %s]"), gnutar_realpath, e);
 	break;
     default: break;
+    }
+
+    if (stop_byte >= 0) {
+	size_t record_size = 20 * 512;	/* tar's default blocking factor */
+
+	if (argument->tar_blocksize)
+	    record_size = (size_t)atoi(argument->tar_blocksize) * 512;
+	close(feed_pipe[0]);
+	signal(SIGPIPE, SIG_IGN);
+	feed_tar_prefix(feed_pipe[1], stop_byte + 1, record_size);
+	close(feed_pipe[1]);
     }
 
     waitpid(tarpid, &wait_status, 0);

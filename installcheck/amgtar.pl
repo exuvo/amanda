@@ -18,7 +18,7 @@
 # Contact information: Carbonite Inc., 756 N Pastoria Ave
 # Sunnyvale, CA 94086, USA, or: http://www.zmanda.com
 
-use Test::More tests => 49;
+use Test::More tests => 59;
 
 use lib '@amperldir@';
 use strict;
@@ -30,6 +30,7 @@ use File::Path;
 use Installcheck::Application;
 use IO::File;
 use Data::Dumper;
+use Amanda::Util;
 
 unless ($Amanda::Constants::GNUTAR and -x $Amanda::Constants::GNUTAR) {
     SKIP: {
@@ -178,6 +179,69 @@ ok(chdir($orig_cur_dir), "changed working directory (back to original)");
 ok(-f "$rest_dir/foo", "foo restored");
 ok(-d "$rest_dir/bar", "bar/ restored");
 ok(-d "$rest_dir/bar", "bar/baz/bat/ restored");
+
+# Without DAR (compressed/encrypted dumps), a restore stops reading once the
+# last requested member has been extracted: the header of a member after it
+# is corrupted, so reading past the cut would make tar fail.
+{
+    my $es_dir = "$root_dir/early_stop";
+    my $es_rest = "$root_dir/early_stop_restore";
+    mkpath($es_dir);
+    mkpath($es_rest);
+    my $fh = new IO::File("$es_dir/a_small", '>') or die "$!";
+    print $fh "small file\n";
+    close($fh);
+    $fh = new IO::File("$es_dir/z_big", '>') or die "$!";
+    print $fh "z" x (2*1024*1024);
+    close($fh);
+
+    my $es_backup = $app->backup('device' => $es_dir, 'level' => 0, 'index' => 'line');
+    is($es_backup->{'exit_status'}, 0, "early-stop backup ok");
+
+    # the state file amgtar records: "<512-byte block> /<name>" per member
+    my $tarlist = "$root_dir/early_stop.tar";
+    open(my $tf, '>', $tarlist) or die "$!";
+    print $tf $es_backup->{'data'};
+    close($tf);
+    my $state_file = "$root_dir/early_stop.state";
+    my %block;
+    open(my $sf, '>', $state_file) or die "$!";
+    foreach my $l (split /\n/, `tar -tRf $tarlist 2>/dev/null`) {
+	next unless $l =~ /^block (\d+): \.(.*)$/;
+	print $sf "$1 $2\n";
+	$block{$2} = $1;
+    }
+    close($sf);
+    ok(defined $block{'/z_big'} && $block{'/z_big'} > $block{'/a_small'},
+       "z_big comes after a_small in the dump");
+
+    my $data = $es_backup->{'data'};
+    substr($data, $block{'/z_big'} * 512, 512) = "x" x 512;
+
+    ok(chdir($es_rest), "changed working directory (early-stop restore)");
+    my $es_restore = $app->restore('objects' => ['./a_small'], 'data' => $data,
+		'args' => ['--recover-dump-state-file', $state_file],
+		data_sigpipe => 1);
+    ok(chdir($orig_cur_dir), "changed working directory (back)");
+    is($es_restore->{'exit_status'}, 0, "early-stop restore ok")
+	or diag($es_restore->{'errs'});
+    is(Amanda::Util::slurp("$es_rest/a_small"), "small file\n",
+       "a_small restored before the corrupted member");
+
+    # a member that runs to the end of the dump still reads everything
+    rmtree($es_rest);
+    mkpath($es_rest);
+    ok(chdir($es_rest), "changed working directory (full restore)");
+    $es_restore = $app->restore('objects' => ['./z_big'],
+		'data' => $es_backup->{'data'},
+		'args' => ['--recover-dump-state-file', $state_file]);
+    ok(chdir($orig_cur_dir), "changed working directory (back)");
+    is($es_restore->{'exit_status'}, 0, "restore of the last member ok");
+    is(-s "$es_rest/z_big", 2*1024*1024, "z_big restored completely");
+    rmtree($es_dir);
+    rmtree($es_rest);
+    unlink($tarlist, $state_file);
+}
 
 $app->add_property('GNUTAR-PATH' => '/do/not/exists');
 $restore = $app->restore('objects' => ['./foo', './bar'], 'data' => $backup->{'data'}, data_sigpipe => 1);
