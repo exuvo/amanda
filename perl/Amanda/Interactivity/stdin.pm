@@ -79,7 +79,7 @@ sub user_request {
     my $data_in = sub {
 	my $b;
 	my $n_read = POSIX::read(0, $b, 1);
-	if (!defined $n_read) {
+	if (!defined $n_read || $n_read < 0) {
 	    return if ($! == EINTR);
 	    $self->abort();
 	    return $params{'request_cb'}->(

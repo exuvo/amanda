@@ -153,7 +153,7 @@ sub async_read {
 
 	my $buf;
 	my $res = POSIX::read($fd, $buf, $size || 32768);
-	if (!defined $res) {
+	if (!defined $res || $res < 0) {
 	    return $cb->($!, undef, @args);
 	} else {
 	    return $cb->(undef, $buf, @args);
@@ -177,7 +177,7 @@ sub async_write {
     # more often than not, writes will not block, so just try it.
     if (!exists $outstanding_writes{$fd}) {
 	my $res = POSIX::write($fd, $data, length($data));
-	if (!defined $res) {
+	if (!defined $res || $res < 0) {
 	    if ($! != POSIX::EAGAIN) {
 		return $cb->($!, 0, @args);
 	    }
@@ -200,7 +200,7 @@ sub async_write {
 	    my ($buf, $nwritten, $len, $cb, $args) = @$ow;
 
 	    my $res = POSIX::write($fd, $buf, $len-$nwritten);
-	    if (!defined $res) {
+	    if (!defined $res || $res < 0) {
 		shift @$fd_writes;
 		$cb->($!, $nwritten, @$args);
 	    } else {

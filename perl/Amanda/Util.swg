@@ -172,7 +172,8 @@ sub full_read {
     while ($count > 0) {
 	my $b;
 	my $n_read = POSIX::read($fd, $b, $count);
-	if (!defined $n_read) {
+	# newer POSIX::read/write return -1 (not undef) on error
+	if (!defined $n_read || $n_read < 0) {
 	    next if ($! == EINTR);
 	    return undef;
 	} elsif ($n_read == 0) {
@@ -191,7 +192,8 @@ sub full_write {
 
     while ($count > 0) {
 	my $n_written = POSIX::write($fd, $buf, $count);
-	if (!defined $n_written) {
+	# newer POSIX::read/write return -1 (not undef) on error
+	if (!defined $n_written || $n_written < 0) {
 	    next if ($! == EINTR);
 	    return undef;
 	} elsif ($n_written == 0) {

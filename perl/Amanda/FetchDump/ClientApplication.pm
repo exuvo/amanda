@@ -466,7 +466,7 @@ sub start_read_dar
     $src->set_callback( sub {
 	my $b;
 	my $n_read = POSIX::read($fd, $b, 1);
-	if (!defined $n_read) {
+	if (!defined $n_read || $n_read < 0) {
 	    return;
 	} elsif ($n_read == 0) {
 	    delete $self->{'fetchdump'}->{'all_filter'}->{$src};
@@ -582,8 +582,8 @@ sub getline {
     while (1) {
 	my $c;
 	my $s = POSIX::read($fd, $c, 1);
+	last if !defined $s || $s < 0;	# Error
 	last if $s == 0;	# EOF
-	last if !defined $s;	# Error
 	$line .= $c;
 	last if $c eq "\n";
     }

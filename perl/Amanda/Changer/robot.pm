@@ -2804,6 +2804,13 @@ sub _run_system_command {
 	my ($len, $bytes);
 	$len = POSIX::read($readfd, $bytes, 1024);
 
+	# retry interrupted reads; treat other errors like EOF
+	# (newer POSIX::read returns -1, not undef, on error)
+	if (!defined $len || $len < 0) {
+	    return if $! == POSIX::EINTR || $! == POSIX::EAGAIN;
+	    $len = 0;
+	}
+
 	# if we got an EOF, shut things down.
 	if ($len == 0) {
 	    $child_eof = 1;
