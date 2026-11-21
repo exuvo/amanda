@@ -951,7 +951,9 @@ main(
 	    }
 
 	    result |= check_result(mesgfd);
-	    if (result == 0) {
+	    /* "record no" dumps (e.g. archive runs) must not move the
+	     * incremental base dates of the regular backups */
+	    if (result == 0 && dle->record) {
 		char *amandates_file;
 
 		amandates_file = getconf_str(CNF_AMANDATES);

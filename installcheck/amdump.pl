@@ -18,7 +18,7 @@
 # Contact information: Carbonite Inc., 756 N Pastoria Ave
 # Sunnyvale, CA 94086, USA, or: http://www.zmanda.com
 
-use Test::More tests => 12;
+use Test::More tests => 15;
 use strict;
 use warnings;
 
@@ -187,5 +187,35 @@ ok($log !~ /^SUCCESS dumper localhost diskname2 /m, "removed DLE is not dumped")
 ok(run('amadmin', 'TESTCONF', 'find', 'localhost', 'diskname2')
    && $Installcheck::Run::stdout =~ /diskname2/,
    "amadmin find still lists the removed DLE's dump");
+
+# "record no" dumps must not update amandates (an archive run would
+# otherwise move the incremental base of the regular backups)
+$testconf = Installcheck::Run::setup();
+$testconf->add_param('autolabel', '"TESTCONF%%" empty volume_error');
+$testconf->add_dle(<<EODLE);
+localhost recorded $diskname {
+    installcheck-test
+    program "APPLICATION"
+    application {
+	plugin "amgtar"
+	property "ATIME-PRESERVE" "NO"
+    }
+}
+localhost norecord $diskname {
+    installcheck-test
+    program "APPLICATION"
+    application {
+	plugin "amgtar"
+	property "ATIME-PRESERVE" "NO"
+    }
+    record no
+}
+EODLE
+$testconf->write();
+ok(run('amdump', 'TESTCONF'), "amdump with a record-no DLE")
+    or amdump_diag();
+my $amandates = Amanda::Util::slurp("$Installcheck::TMP/TESTCONF/amandates");
+like($amandates, qr/^"?recorded"? 0 \d+$/m, "recorded DLE is in amandates");
+unlike($amandates, qr/norecord/, "record-no DLE is not in amandates");
 
 Installcheck::Run::cleanup();
