@@ -31,7 +31,7 @@ root of the Amanda source, run
   GNULIB_TOOL=$GNULIB_BR/gnulib-tool ./gnulib/regenerate/regenerate
 
 Use 'svn status' to figure out what changed, and 'svn add' / 'svn rm'
-to inform Subversion.  Then re-run autogen, configure, make, and test
+to inform Subversion.  Then re-run cmake, build, and test
 the result.
 
 Get the object ID of the latest commit, using 'git show', and replace the
