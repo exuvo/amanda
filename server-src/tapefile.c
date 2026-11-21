@@ -785,6 +785,22 @@ gchar **list_new_tapes(
 }
 
 static find_result_t *output_find = NULL;
+
+/* the set of disks currently linked into the host list */
+static GHashTable *
+disks_in_hostlist(void)
+{
+    GHashTable *set = g_hash_table_new(g_direct_hash, g_direct_equal);
+    am_host_t  *host;
+    disk_t     *dp;
+
+    for (host = get_hostlist(); host != NULL; host = host->next) {
+	for (dp = host->disks; dp != NULL; dp = dp->hostnext)
+	    g_hash_table_add(set, dp);
+    }
+    return set;
+}
+
 void
 compute_retention(void)
 {
@@ -834,14 +850,32 @@ compute_retention(void)
 	if (!output_find && (policy_get_retention_recover(policy) ||
 			     policy_get_retention_full(policy))) {
 	    char *conf_diskfile = config_dir_relative(getconf_str(CNF_DISKFILE));
+	    GHashTable *known;
+	    am_host_t  *host;
+	    disk_t     *dp;
+
 	    diskp = get_disklist();
 	    if (!diskp) {
 		diskp = g_new0(disklist_t, 1);
 		read_diskfile(conf_diskfile, diskp);
 	    }
+	    known = disks_in_hostlist();
+
+	    /* added_todo=1 so the dumps of DLEs removed from the disklist
+	     * still count for retention ... */
 	    output_find = find_dump(diskp, 1);
 	    sort_find_result("hkDLpbfw", &output_find);
 	    g_free(conf_diskfile);
+
+	    /* ... but those DLEs must not become work for the planner,
+	     * driver or amcheck: they have no program (issue #237) */
+	    for (host = get_hostlist(); host != NULL; host = host->next) {
+		for (dp = host->disks; dp != NULL; dp = dp->hostnext) {
+		    if (!g_hash_table_contains(known, dp))
+			dp->todo = 0;
+		}
+	    }
+	    g_hash_table_destroy(known);
 	}
 
 	compute_storage_retention(output_find, storage_name(storage),

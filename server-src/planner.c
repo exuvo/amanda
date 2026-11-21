@@ -922,6 +922,16 @@ setup_estimate(
     assert(dp && dp->host);
 
     compute_retention();
+
+    /* a DLE that is only known from old logs (removed from the disklist)
+     * has nothing to estimate */
+    if (dp->line == 0 || dp->program == NULL) {
+	g_debug("skipping %s:%s: not in the disklist",
+		dp->host->hostname, dp->name);
+	dp->todo = 0;
+	return;
+    }
+
     qname = quote_string(dp->name);
     g_fprintf(stderr, _("%s: time %s: setting up estimates for %s:%s\n"),
 		    get_pname(), walltime_str(curclock()),

@@ -18,7 +18,7 @@
 # Contact information: Carbonite Inc., 756 N Pastoria Ave
 # Sunnyvale, CA 94086, USA, or: http://www.zmanda.com
 
-use Test::More tests => 8;
+use Test::More tests => 12;
 use strict;
 use warnings;
 
@@ -159,5 +159,33 @@ ok(!run('amdump', 'TESTCONF'), "amdump succeed on flush no more space")
     or amdump_diag();
 $log = Amanda::Util::slurp("$CONFIG_DIR/TESTCONF/log/log");
 ok($log =~ /No space left on device: more than MAX_VOLUME_USAGE bytes written, splitting not enabled/, "report No space left on device") or amdump_diag();
+
+# Remove a DLE that still has dumps (issue #237). With a retention-full
+# policy the planner used to pick up the removed DLE from the old logs and
+# crash on its missing program.
+$testconf = Installcheck::Run::setup();
+$testconf->add_policy("keep_full", [ retention_full => 2 ]);
+$testconf->add_storage("disk", [ tpchanger => "\"chg-disk:$Installcheck::Run::taperoot\"",
+				 policy    => "\"keep_full\"",
+				 autolabel => '"TESTCONF%%" empty volume_error' ]);
+$testconf->add_param("storage", '"disk"');
+$testconf->add_dle("localhost diskname1 $diskname installcheck-test");
+$testconf->add_dle("localhost diskname2 $diskname installcheck-test");
+$testconf->write();
+
+ok(run('amdump', 'TESTCONF'), "amdump with two DLEs")
+    or amdump_diag();
+
+open(my $dl, ">", "$CONFIG_DIR/TESTCONF/disklist") or die("disklist: $!");
+print $dl "localhost diskname1 $diskname installcheck-test\n";
+close($dl);
+
+ok(run('amdump', 'TESTCONF'), "amdump after removing a DLE that still has dumps")
+    or amdump_diag();
+$log = Amanda::Util::slurp("$CONFIG_DIR/TESTCONF/log/log");
+ok($log !~ /^SUCCESS dumper localhost diskname2 /m, "removed DLE is not dumped");
+ok(run('amadmin', 'TESTCONF', 'find', 'localhost', 'diskname2')
+   && $Installcheck::Run::stdout =~ /diskname2/,
+   "amadmin find still lists the removed DLE's dump");
 
 Installcheck::Run::cleanup();
