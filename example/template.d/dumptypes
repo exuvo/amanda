@@ -143,51 +143,6 @@ define dumptype always-full {
     dumpcycle 0
 }
 
-# Dumptypes for star
-define dumptype root-star {
-    global
-    program "STAR"
-    comment "root partitions dumped with star"
-    compress none
-    index
-#    exclude list "/var/lib/amanda/exclude.star"
-    priority low
-}
-
-define dumptype user-star {
-    root-star
-    comment "user partitions dumped with star"
-    priority medium
-}
-
-define dumptype user-star-span {
-    root-star
-    comment "tape-spanning user partitions dumped with star"
-    priority medium
-}
-
-define dumptype high-star {
-    root-star
-    comment "partitions dumped with star"
-    priority high
-}
-
-define dumptype comp-root-star {
-    root-star
-    comment "Root partitions with compression"
-    compress client fast
-}
-
-define dumptype comp-user-star {
-    user-star
-    compress client fast
-}
-
-define dumptype comp-user-star-span {
-    user-star-span
-    compress client fast
-}
-
 # Dumptypes for gnutar
 
 define dumptype root-tar {

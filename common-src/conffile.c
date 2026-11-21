@@ -7688,13 +7688,9 @@ validate_program(
     conf_var_t *np G_GNUC_UNUSED,
     val_t        *val)
 {
-    /* DUMP and STAR are no longer supported, but stay valid here so that
-     * existing configs (and the shipped template.d/dumptypes) still load */
-    if (!g_str_equal(val->v.s, "DUMP") &&
-    	!g_str_equal(val->v.s, "GNUTAR") &&
-    	!g_str_equal(val->v.s, "STAR") &&
+    if (!g_str_equal(val->v.s, "GNUTAR") &&
     	!g_str_equal(val->v.s, "APPLICATION"))
-       conf_parserror("program must be \"DUMP\", \"GNUTAR\", \"STAR\" or \"APPLICATION\"");
+       conf_parserror("program must be \"GNUTAR\" or \"APPLICATION\"");
 }
 
 static void

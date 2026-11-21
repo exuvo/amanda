@@ -704,22 +704,6 @@ define dumptype dt_amgtar {
     application "app_amgtar"
 }
 
-#define application-tool and dumptype for the amstar application
-define application-tool app_amstar {
-    comment "amstar"
-    plugin  "amstar"
-    #property "STAR-PATH" "/path/to/star"
-    #property "STAR-TARDUMP" "/path/to/tardumps"  # default /etc/tardumps
-    #property "STAR-DLE-TARDUMP" "no"
-	# if 'yes' then create a different tardump file for each DLE,
-        # it is required if you do many dump in parallel (maxdump>1)
-}
-
-define dumptype dt_amstar {
-    program "APPLICATION"
-    application "app_amstar"
-}
-
 #define a script-tool to send an email
 define script-tool sc-email {
   comment "script-email"
