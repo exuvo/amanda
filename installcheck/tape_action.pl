@@ -89,7 +89,7 @@ $testconf->write();
 #ok(run('amdump', 'TESTCONF'), "amdump runs successfully")
 #    or amdump_diag();
 #is($exit_code, 0, "exit code is not 0");
-#is(check_logs("INFO taper tape TESTCONF01 kb 1306 fm 2", "INFO taper tape TESTCONF02 kb 794 fm 1"), 2, "2 vtapes used");
+#is(check_logs("INFO taper tape TESTCONF01 Barcode \\S* kb 1306 fm 2", "INFO taper tape TESTCONF02 Barcode \\S* kb 794 fm 1"), 2, "2 vtapes used");
 #
 #run('amadmin', 'TESTCONF', 'force', 'localhost');
 #if (-d $holdingdir) {
@@ -109,7 +109,7 @@ $testconf->write();
 #ok(run('amdump', 'TESTCONF'), "amdump runs successfully")
 #    or amdump_diag();
 #is($exit_code, 0, "exit code is not 0");
-#is(check_logs("INFO taper tape TESTCONF01 kb 640 fm 1", "INFO taper tape TESTCONF02 kb 602 fm 2", "INFO taper tape TESTCONF03 kb 640 fm 1", "INFO taper tape TESTCONF04 kb 218 fm 1"), 4, "4 vtapes used");
+#is(check_logs("INFO taper tape TESTCONF01 Barcode \\S* kb 640 fm 1", "INFO taper tape TESTCONF02 Barcode \\S* kb 602 fm 2", "INFO taper tape TESTCONF03 Barcode \\S* kb 640 fm 1", "INFO taper tape TESTCONF04 Barcode \\S* kb 218 fm 1"), 4, "4 vtapes used");
 #
 #run('amadmin', 'TESTCONF', 'force', 'localhost');
 #if (-d $holdingdir) {
@@ -122,7 +122,7 @@ $testconf->write();
 #ok(run('amdump', 'TESTCONF'), "amdump runs successfully")
 #    or amdump_diag();
 #is($exit_code, 0, "exit code is not 0");
-#is(check_logs("INFO taper tape TESTCONF01 kb 640 fm 1", "INFO taper tape TESTCONF02 kb 640 fm 1", "INFO taper tape TESTCONF03 kb 410 fm 1", "INFO taper tape TESTCONF04 kb 410 fm 1"), 4, "4 vtapes used");
+#is(check_logs("INFO taper tape TESTCONF01 Barcode \\S* kb 640 fm 1", "INFO taper tape TESTCONF02 Barcode \\S* kb 640 fm 1", "INFO taper tape TESTCONF03 Barcode \\S* kb 410 fm 1", "INFO taper tape TESTCONF04 Barcode \\S* kb 410 fm 1"), 4, "4 vtapes used");
 #
 #run('amadmin', 'TESTCONF', 'force', 'localhost');
 #if (-d $holdingdir) {
@@ -141,7 +141,7 @@ my $result;
 ok(run('amdump', 'TESTCONF'), "amdump runs successfully")
     or amdump_diag();
 is($exit_code, 0, "exit code is not 0");
-is(check_logs("INFO taper tape TESTCONF01 kb 736 fm 1", "INFO taper tape TESTCONF02 kb 736 fm 1", "INFO taper tape TESTCONF03 kb 628 fm 2"), 3, "3 vtapes used");
+is(check_logs("INFO taper tape TESTCONF01 Barcode \\S* kb 736 fm 1", "INFO taper tape TESTCONF02 Barcode \\S* kb 736 fm 1", "INFO taper tape TESTCONF03 Barcode \\S* kb 628 fm 2"), 3, "3 vtapes used");
 $result = check_amdump(
 	[
 		"to taper0: START-TAPER taper0 worker0-0 TESTCONF",
@@ -227,7 +227,7 @@ $testconf->write();
 ok(run('amdump', 'TESTCONF'), "amdump runs successfully")
     or amdump_diag();
 is($exit_code, 0, "exit code is not 0");
-is(check_logs("INFO taper tape TESTCONF01 kb 1288 fm 2", "INFO taper tape TESTCONF02 kb 349 fm 1"), 2, "2 vtapes used");
+is(check_logs("INFO taper tape TESTCONF01 Barcode \\S* kb 1288 fm 2", "INFO taper tape TESTCONF02 Barcode \\S* kb 349 fm 1"), 2, "2 vtapes used");
 $result = check_amdump(
 	[
 		"to taper0: START-TAPER taper0 worker0-0 TESTCONF",
@@ -298,7 +298,7 @@ $testconf->write();
 ok(!run('amdump', 'TESTCONF'), "amdump exited with no zero")
     or amdump_diag();
 is($exit_code, 16, "exit code is not 16");
-is(check_logs("INFO taper tape TESTCONF01 kb 1288 fm 2"), 1, "1 vtapes used");
+is(check_logs("INFO taper tape TESTCONF01 Barcode \\S* kb 1288 fm 2"), 1, "1 vtapes used");
 $result = check_amdump(
 	[
 		"to taper0: START-TAPER taper0 worker0-0 TESTCONF",

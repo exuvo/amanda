@@ -39,7 +39,7 @@ use Amanda::Taper::Scan;
 use Amanda::Recovery::Scan;
 use Amanda::Interactivity;
 use Amanda::Tapelist;
-use Amanda::Message qw( :severity );
+use Amanda::Message;
 
 my $exit_status = 0;
 my $tl;

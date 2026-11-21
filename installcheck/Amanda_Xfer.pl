@@ -18,7 +18,7 @@
 # Contact information: Carbonite Inc., 756 N Pastoria Ave
 # Sunnyvale, CA 94086, USA, or: http://www.zmanda.com
 
-use Test::More tests => 68;
+use Test::More;
 use File::Path;
 use Data::Dumper;
 use strict;
@@ -1518,3 +1518,5 @@ if (!Amanda::Util::built_with_component("server")) {
     ok(!($a != $a), "elements do not compare != to themselves");
     ok($a != $b, ".. but are != to other elements");
 }
+
+done_testing();

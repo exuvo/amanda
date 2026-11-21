@@ -361,7 +361,9 @@ is(run_get('amgetconf', 'TESTCONF', "property:prop2"), "value2",
     "correctly returns property prop2 from the file");
 is(run_get('amgetconf', 'TESTCONF', "property:prop3"), "value3",
     "correctly returns property prop3 from the file");
-is(run_get('amgetconf', 'TESTCONF', "property"), "hidden \"prop1\" \"value1\"\nhidden \"prop2\" \"value2\"\nhidden \"prop3\" \"value3\"",
+# properties are kept in a hash table, so their order is not defined
+is_deeply([sort(+split(qr/\n/, run_get('amgetconf', 'TESTCONF', "property")))],
+	  [ 'hidden "prop1" "value1"', 'hidden "prop2" "value2"', 'hidden "prop3" "value3"' ],
     "correctly returns all propertiss from the file");
 
 isnt(run_get('amgetconf', '--platform'), "Unknown",

@@ -17,7 +17,7 @@
 # Contact information: Carbonite Inc., 756 N Pastoria Ave
 # Sunnyvale, CA 94086, USA, or: http://www.zmanda.com
 
-use Test::More tests => 21;
+use Test::More;
 use File::Path;
 use Data::Dumper;
 use strict;
@@ -615,3 +615,5 @@ rmtree($taperoot);
 # cleanup
 rmtree($taperoot);
 unlink($holding_file);
+
+done_testing();

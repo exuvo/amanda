@@ -18,7 +18,7 @@
 # Contact information: Carbonite Inc., 756 N Pastoria Ave
 # Sunnyvale, CA 94086, USA, or: http://www.zmanda.com
 
-use Test::More tests => 39;
+use Test::More;
 use strict;
 use warnings;
 
@@ -239,3 +239,5 @@ like($stdout, qr/AMANDA: /, "..and stdout contains something with a header");
 chdir("$testdir/..");
 rmtree($testdir);
 Installcheck::Run::cleanup();
+
+done_testing();

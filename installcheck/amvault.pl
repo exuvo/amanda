@@ -18,7 +18,7 @@
 # Contact information: Carbonite Inc., 756 N Pastoria Ave
 # Sunnyvale, CA 94086, USA, or: http://www.zmanda.com
 
-use Test::More tests => 11;
+use Test::More;
 use strict;
 use warnings;
 
@@ -181,3 +181,5 @@ is_deeply([ get_dry_run("$sbindir/amvault",
 
 # clean up
 Installcheck::Run::cleanup();
+
+done_testing();
