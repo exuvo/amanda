@@ -18,7 +18,7 @@
 # Contact information: Carbonite Inc., 756 N Pastoria Ave
 # Sunnyvale, CA 94086, USA, or: http://www.zmanda.com
 
-use Test::More tests => 47;
+use Test::More tests => 49;
 
 use lib '@amperldir@';
 use strict;
@@ -138,6 +138,20 @@ ok(!@{$backup->{'errors'}}, "no errors during backup")
     or diag(@{$backup->{'errors'}});
 
 is(length($backup->{'data'}), $backup->{'size'}, "reported and actual size match");
+
+# the client estimate must report the real size (it was always 1 KB)
+my $big_dir = "$root_dir/estimate";
+mkpath($big_dir);
+{
+    my $fh = new IO::File("$big_dir/1mbyte", '>') or die "$!";
+    print $fh "x" x (1024*1024);
+}
+my $big_est = $app->estimate('device' => $big_dir, 'level' => 0);
+ok(!@{$big_est->{'errors'}}, "no errors during estimate")
+    or diag(@{$big_est->{'errors'}});
+cmp_ok($big_est->{'size'}, '>=', 1024*1024, "estimate reports the real size")
+    or diag("estimate size: " . ($big_est->{'size'} // 'undef'));
+rmtree($big_dir);
 
 ok(@{$backup->{'index'}}, "index is not empty");
 ok_foreach(

@@ -1256,8 +1256,8 @@ amgtar_estimate(
                     {
                         size = (int64_t) ( the_num(line, rp->field) * rp->scale );
                         size = ( size+1023 ) >> 10;
-                        /* found on NeXT -- sigh */
-                        size = ( size >= 0 ? : 1 );  /* at least zero plz */
+                        if (size < 0)
+                            size = 1;   /* found on NeXT -- sigh */
 		    }
 		    break;
 		}
@@ -2236,13 +2236,12 @@ amgtar_get_incrname(
 	    dbprintf("%s\n", errmsg);
 	    aclose(outfd);
 	    amfree(incrname);
-	    amfree(errmsg);
-	    dbprintf("%s\n", errmsg);
 	    if (command == CMD_ESTIMATE) {
 		fprintf(mesgstream, "ERROR %s\n", errmsg);
 	    } else {
 		fprintf(mesgstream, "sendbackup: error [%s]\n", errmsg);
 	    }
+	    amfree(errmsg);
 	    exit(1);
 	}
 	if (close(outfd) != 0) {
