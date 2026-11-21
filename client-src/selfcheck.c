@@ -360,8 +360,7 @@ main(
     }
     if (g_options == NULL) {
 	delete_message(selfcheck_print_message(build_message(
-			AMANDA_FILE, __LINE__, 3600006, MSG_ERROR, 1,
-			"hostname", g_options->hostname)));
+			AMANDA_FILE, __LINE__, 3600006, MSG_ERROR, 0)));
 	exit(1);
 	/*NOTREACHED*/
     }
