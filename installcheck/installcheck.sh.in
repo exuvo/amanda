@@ -1,0 +1,53 @@
+#!/bin/sh
+# Run the installchecks against the installed Amanda (installcheck target).
+# Mirrors the old installcheck/Makefile.am recipe.
+
+set -e
+CONFIG_DIR="@AMANDA_CONFIG_DIR@"
+AMANDA_TMPDIR="@AMANDA_TMPDIR@"
+srcdir="@CMAKE_CURRENT_SOURCE_DIR@"
+tests="@AMANDA_INSTALLCHECK_TESTS@"
+
+if [ "${CLOBBER_MY_CONFIG}" != "OK" ]; then
+    echo ""
+    echo "installcheck is a dangerous tool.  It will overwrite your"
+    echo "amanda-client.conf and amandates, and (if it triggers an as-yet undetected"
+    echo "bug) may do other unexpected things.  Do not run it on a production"
+    echo "install or as root; use a private install prefix instead.  To run it:"
+    echo "  CLOBBER_MY_CONFIG=OK cmake --build <builddir> --target installcheck"
+    exit 1
+fi
+
+rm -rf "${AMANDA_TMPDIR}/installchecks"
+mkdir -p "${AMANDA_TMPDIR}/installchecks"
+
+# tests run through perl; executable test files confuse Test::Harness
+chmod a-x amcat-error-no-exec
+for t in ${tests}; do chmod a-x "$t"; done
+
+backup() {
+    if [ -f "$1" ] && [ ! -f "$1.install-backup" ]; then
+        cp "$1" "$1.install-backup"
+    fi
+}
+restore() {
+    if [ -f "$1.install-backup" ]; then
+        mv -f "$1.install-backup" "$1"
+    else
+        rm -f "$1"
+    fi
+}
+backup "${CONFIG_DIR}/amanda-client.conf"
+backup "${CONFIG_DIR}/template.d/dumptypes"
+backup "${CONFIG_DIR}/template.d/tapetypes"
+
+rc=0
+srcdir="${srcdir}" "@PERL@" -I"${srcdir}" -I. \
+    -e 'use Test::Harness qw(&runtests); runtests(sort @ARGV);' ${tests} || rc=$?
+
+rm -rf "${CONFIG_DIR}/TESTCONF"
+restore "${CONFIG_DIR}/amanda-client.conf"
+restore "${CONFIG_DIR}/template.d/dumptypes"
+restore "${CONFIG_DIR}/template.d/tapetypes"
+rm -rf "${AMANDA_TMPDIR}/installchecks"
+exit $rc
