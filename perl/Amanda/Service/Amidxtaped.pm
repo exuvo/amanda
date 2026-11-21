@@ -1078,22 +1078,13 @@ sub quit1 {
 
 sub check_inetd_security {
     my $self = shift;
-    my ($stream) = @_;
 
-    my $firstline = $self->getline($stream);
-    if ($firstline !~ /^SECURITY (.*)\n/) {
-	warning("did not get security line");
-	print "ERROR did not get security line\r\n";
-	return 0;
-    }
-
-    my $errmsg = $self->check_bsd_security($stream, $1, "amidxtaped");
-    if ($errmsg) {
-	print "ERROR $errmsg\r\n";
-	return 0;
-    }
-
-    return 1;
+    # only auth "local" (via amandad) is supported; inetd mode needed the
+    # removed BSD security check
+    warning("amidxtaped must be started by amandad");
+    print "ERROR amidxtaped must be started by amandad
+";
+    return 0;
 }
 
 sub get_req {

@@ -18,7 +18,7 @@
 # Contact information: Carbonite Inc., 756 N Pastoria Ave
 # Sunnyvale, CA 94086, USA, or: http://www.zmanda.com
 
-use Test::More tests => 10;
+use Test::More tests => 8;
 
 use lib '@amperldir@';
 use File::Path;
@@ -54,12 +54,6 @@ my $holding_exists = 0;
 $holding_exists = 1 if -d "$amandahomedir/holdings/$config";
 my $vtapes_exists = 0;
 $vtapes_exists = 1 if -d "$amandahomedir/vtapes/$config";
-
-Installcheck::Run::cleanup();
-ok(run("$sbindir/amserverconfig", 'TESTCONF', '--template', 'S3'),
-    "amserverconfig with S3 template")
-    or diag($Installcheck::Run::stdout);
-config_ok();
 
 Installcheck::Run::cleanup();
 ok(run("$sbindir/amserverconfig", 'TESTCONF', '--template', 'harddisk'),

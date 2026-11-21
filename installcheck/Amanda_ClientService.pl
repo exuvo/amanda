@@ -18,7 +18,7 @@
 # Contact information: Carbonite Inc., 756 N Pastoria Ave
 # Sunnyvale, CA 94086, USA, or: http://www.zmanda.com
 
-use Test::More tests => 30;
+use Test::More tests => 29;
 use strict;
 use warnings;
 
@@ -200,19 +200,6 @@ Amanda::MainLoop::run();
 	"wfd returns -1 for invalid stream");
     is($cs->rfd('none'), -1,
 	"rfd returns -1 for invalid stream");
-}
-
-# check check_bsd_security
-{
-    # note that we can't completely test this, because BSD security entails checking
-    # DNS and privileged ports, neither of which are controllable from the installcheck
-    # environment.  However, we can at least call the method.
-
-    my $cs = Amanda::ClientService->new();
-    $cs->{'_argv'} = [ 'installcheck' ]; # basically neuters check_bsd_security
-
-    ok(!$cs->check_bsd_security('main', "USER bart"),
-	"check_bsd_security returns undef");
 }
 
 # check parse_req

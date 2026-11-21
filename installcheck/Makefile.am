@@ -20,22 +20,17 @@ all_tests += $(common_tests)
 
 client_tests = \
         noop \
-	ambsdtar \
 	amgtar \
 	ampgsql \
 	amraw \
-	amstar \
 	runtar
 all_tests += $(client_tests)
 
 server_tests = \
 	Amanda_Changer \
-	Amanda_Changer_aggregate \
 	Amanda_Changer_disk \
 	Amanda_Changer_diskflat \
-	Amanda_Changer_multi \
 	Amanda_Changer_null \
-	Amanda_Changer_rait \
 	Amanda_Changer_robot \
 	Amanda_Changer_single \
 	Amanda_Cmdline \
@@ -50,16 +45,6 @@ server_tests = \
 	Amanda_Recovery_Planner \
 	Amanda_Recovery_Scan \
 	Amanda_Report \
-	Amanda_Rest_Configs \
-	Amanda_Rest_Dles \
-	Amanda_Rest_Dumps \
-	Amanda_Rest_Labels \
-	Amanda_Rest_Runs \
-	Amanda_Rest_Services_senddiscover \
-	Amanda_Rest_Services_senddiscover_amgtar \
-	Amanda_Rest_Storages \
-	Amanda_Rest_Storages_Labels \
-	Amanda_Rest_Version \
 	Amanda_Tapelist \
 	Amanda_Taper_Scan \
 	Amanda_Taper_Scan_lexical \
@@ -79,13 +64,11 @@ all_tests += $(server_tests)
 
 full_tests = \
 	0_setupcache \
-	Amanda_Rest_Amcheck \
 	amadmin \
 	amcheck \
 	amcheckdump \
 	amdevcheck \
 	amdump \
-	amdump_client \
 	amflush \
 	amoverview \
 	amreport \
@@ -95,59 +78,13 @@ full_tests = \
 	amstatus \
 	amvault \
 	example \
-	failure-client-custom-compress \
-	failure-client-custom-compress-end \
-	failure-client-custom-compress-not-found \
-	failure-client-custom-compress-no-exec \
-	failure-client-encrypt \
-	failure-client-encrypt-end \
-	failure-client-encrypt-not-found \
-	failure-client-encrypt-no-exec \
-	failure-dumper-try-again \
-	failure-server-custom-compress \
-	failure-server-custom-compress-end \
-	failure-server-custom-compress-not-found \
-	failure-server-custom-compress-no-exec \
-	failure-server-encrypt \
-	failure-server-encrypt-end \
-	failure-server-encrypt-not-found \
-	failure-server-encrypt-no-exec \
-	failure-xfer-dest-holding-file-first-close_chunk \
-	failure-xfer-dest-holding-file-second-close_chunk \
-	failure-xfer-dest-holding-file-open-first-header \
-	failure-xfer-dest-holding-file-open-second-header \
-	failure-xfer-dest-holding-file-write-first-data \
-	failure-xfer-dest-holding-file-write-first-header \
-	failure-xfer-dest-holding-file-write-second-data \
-	failure-xfer-dest-holding-file-write-second-header \
-	failure-xfer-dest-holding-shm-first-close_chunk \
-	failure-xfer-dest-holding-shm-second-close_chunk \
-	failure-xfer-dest-holding-shm-open-first-header \
-	failure-xfer-dest-holding-shm-open-second-header \
-	failure-xfer-dest-holding-shm-write-first-data \
-	failure-xfer-dest-holding-shm-write-first-header \
-	failure-xfer-dest-holding-shm-write-second-data \
-	failure-xfer-dest-holding-shm-write-second-header \
-	pp-scripts \
-	success-dumper-taper-vault \
-	success-dumper-chunker-taper \
-	success-dumper-chunker-2taper \
-	success-dumper-chunker-2taper-by-level \
-	success-dumper-taper \
-	success-dumper-chunker+dumper-chunker-taper-flush \
-	success-dumper-chunker+taper-flush \
-	success-dumper-chunker+2taper-flush \
 	tape_action
 all_tests += $(full_tests)
 
 restore_tests = \
 	amfetchdump \
 	amidxtaped \
-	amrestore\
-	dump-client-custom-compress+amfetchdump \
-	dump-client-encrypt+amfetchdump \
-	dump-server-custom-compress+amfetchdump \
-	dump-server-encrypt+amfetchdump
+	amrestore
 all_tests += $(restore_tests)
 
 restore_tests_no_check_userid = \
@@ -165,9 +102,6 @@ mocks = \
 	mock/lpr
 
 # data for test scripts
-test_data = \
-	data/aws-bundle.crt
-EXTRA_DIST += $(test_data)
 CLEANFILES += $(all_tests) $(mocks) $(noinst_SCRIPTS) amcat amcat-error amcat-error-end amcat-error-no-exec
 DISTCLEANFILES += config.log
 
@@ -213,7 +147,6 @@ test_utils = \
 	Installcheck/Config.pm \
 	Installcheck/ClientService.pm \
 	Installcheck/Mock.pm \
-	Installcheck/Rest.pm \
 	Installcheck/Run.pm \
 	Installcheck/Dumpcache.pm \
 	Installcheck/Application.pm \

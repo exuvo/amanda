@@ -23,6 +23,7 @@ applicationexec_SCRIPTS_PERL = script-email \
 	     ampgsql \
 	     amzfs-sendrecv \
 	     amzfs-snapshot \
+	     amrandom \
 	     amraw
 
 amlibexec_PROGRAMS = teecount

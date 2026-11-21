@@ -101,8 +101,8 @@
 #		  mode", as many incrementals as will fit on the holding disk
 #		  are done, higher priority first, to insure the important
 #		  disks are at least dumped.  Default: [priority medium]
-#   program	- specify the dump system to use.  Valid values are "DUMP" 
-#		  "STAR" and "GNUTAR".  Default: [program "DUMP"].
+#   program	- specify the dump system to use.  Valid values are "GNUTAR" 
+#		  and "APPLICATION".  Default: [program "GNUTAR"].
 #   record	- record the backup in the time-stamp-database of the backup
 #		  program (e.g. /etc/dumpdates for DUMP or
 #		  /var/lib/amanda/gnutar-lists for GNUTAR.).

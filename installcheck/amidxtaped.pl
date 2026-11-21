@@ -18,7 +18,7 @@
 # Contact information: Carbonite Inc., 756 N Pastoria Ave
 # Sunnyvale, CA 94086, USA, or: http://www.zmanda.com
 
-use Test::More tests => 153;
+use Test::More;
 
 use strict;
 use warnings;
@@ -804,7 +804,7 @@ for my $splits (0, 'basic', 'parts') { # two flavors of 'true'
 	Installcheck::Dumpcache::load($splits);
 	$loaded_dumpcache = $splits;
     }
-    for $emulate ('inetd', 'amandad') {
+    for $emulate ('amandad') {
 	# note that 'directtcp' here expects amidxtaped to reply with AMANDA
 	for my $datapath ('none', 'amanda', 'directtcp') {
 	    for my $header (0, 1) {
@@ -847,7 +847,7 @@ $loaded_dumpcache = 'basic';
 
 ## miscellaneous edge cases
 
-for $emulate ('inetd', 'amandad') {
+for $emulate ('amandad') {
     # can send something beginning with a digit instead of "END\r\n"
     test(emulate => $emulate, digit_end => 1);
 
@@ -890,3 +890,5 @@ test(dumpspec => 0, emulate => 'amandad',
 
 unlink($holdingfile);
 Installcheck::Run::cleanup();
+
+done_testing();

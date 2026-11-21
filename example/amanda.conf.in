@@ -445,8 +445,8 @@ define tapetype SEAGATE-ULTRIUM-LTO {
 #		  mode", as many incrementals as will fit on the holding disk
 #		  are done, higher priority first, to insure the important
 #		  disks are at least dumped.  Default: [priority medium]
-#   program	- specify the dump system to use.  Valid values are "DUMP",
-#                 or "GNUTAR".  Default: [program "DUMP"].
+#   program	- specify the dump system to use.  Valid values are "GNUTAR"
+#                 or "APPLICATION".  Default: [program "GNUTAR"].
 #   record	- record the backup in the time-stamp-database of the backup
 #		  program (e.g. /etc/dumpdates for DUMP or
 #		  @GNUTAR_LISTED_INCREMENTAL_DIR@ for GNUTAR.).
